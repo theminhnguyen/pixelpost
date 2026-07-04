@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PixelPost — Grußkarte als Mini-Spiel im Retro-Stil</title>
+  <meta name="description" content="Sammle Grüße und verschicke sie als begehbares Mini-Spiel im Game-Boy-Stil. Der Empfänger läuft durch einen Pixel-Raum und liest jeden Gruß in der klassischen Dialogbox. Kostenlos, ohne Anmeldung, ohne Server.">
+  <script>if (/^#(c|d)=/.test(location.hash)) document.documentElement.className = "is-viewer";</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23182840'/%3E%3Crect x='2' y='4' width='12' height='8' fill='%23e8f0f8'/%3E%3Cpath d='M2 4l6 5 6-5' stroke='%235878a8' stroke-width='1.5' fill='none'/%3E%3C/svg%3E">
+</head>
+<body>
+  <main class="creator">
+    <header class="hero">
+      <h1 class="logo">PIXEL<span>POST</span></h1>
+      <p class="tagline">Deine Grußkarte als begehbares Mini-Spiel im Retro-Stil.</p>
+      <p class="sub">Sammle Grüße von allen — jeder Gruß wird ein Männchen im Pixel-Raum.
+        Der Empfänger läuft herum, spricht die Leute an und liest eure Nachrichten
+        in der klassischen Dialogbox. Läuft komplett im Browser, kostenlos, ohne Anmeldung.</p>
+    </header>
+
+    <section class="step">
+      <h2><span class="step__num">1</span> Anlass wählen</h2>
+      <div id="occasionPick" class="chips">
+        <button type="button" data-value="geburtstag">🎂 Geburtstag</button>
+        <button type="button" data-value="abschied">👋 Abschied</button>
+        <button type="button" data-value="hochzeit">💍 Hochzeit</button>
+        <button type="button" data-value="jubilaeum">🏆 Jubiläum</button>
+        <button type="button" data-value="einfach">💌 Einfach so</button>
+      </div>
+    </section>
+
+    <section class="step">
+      <h2><span class="step__num">2</span> Edition wählen</h2>
+      <div id="editionPick" class="chips chips--edition">
+        <button type="button" data-value="blau"><i style="background:#5878a8"></i><i style="background:#a8c0e0"></i> Blaue Edition</button>
+        <button type="button" data-value="rot"><i style="background:#c05038"></i><i style="background:#e8b4a0"></i> Rote Edition</button>
+        <button type="button" data-value="gold"><i style="background:#a08028"></i><i style="background:#e0c878"></i> Goldene Edition</button>
+      </div>
+    </section>
+
+    <section class="step">
+      <h2><span class="step__num">3</span> Begrüßung</h2>
+      <input id="cardTitle" type="text" maxlength="80"
+             placeholder="z. B. Alles Gute zum 30., liebe Mia!">
+      <p class="note">Erscheint als erste Dialogbox, wenn der Empfänger die Karte öffnet.
+        Leer lassen = Standard-Begrüßung zum Anlass.</p>
+    </section>
+
+    <section class="step">
+      <h2><span class="step__num">4</span> Grüße sammeln</h2>
+      <p class="note">Jeder Gruß wird ein eigenes Männchen im Raum. Sammle die Texte
+        z. B. per Messenger ein und trag sie hier zusammen.</p>
+      <div id="greetList"></div>
+      <div class="greet-foot">
+        <button type="button" id="addGreet" class="btn btn--ghost">+ Gruß hinzufügen</button>
+        <span id="greetCount" class="note"></span>
+      </div>
+    </section>
+
+    <section class="step step--actions">
+      <h2><span class="step__num">5</span> Fertig!</h2>
+      <div class="actions">
+        <button type="button" id="btnPreview" class="btn">▶ Vorschau spielen</button>
+        <button type="button" id="btnLink" class="btn btn--primary">🔗 Link erstellen</button>
+        <button type="button" id="btnDownload" class="btn">💾 Als Datei speichern</button>
+      </div>
+      <div id="shareBox" class="share" hidden>
+        <div class="share__row">
+          <input id="shareUrl" type="text" readonly>
+          <button type="button" id="btnCopy" class="btn btn--primary">Kopieren</button>
+        </div>
+        <p id="shareHint" class="note"></p>
+      </div>
+      <p class="note">Der <b>Link</b> enthält die komplette Karte (kein Server, nichts wird hochgeladen).
+        Die <b>Datei</b> läuft sogar offline — einfach per Mail oder Messenger schicken.</p>
+    </section>
+
+    <footer class="foot">
+      <button type="button" id="btnReset" class="btn btn--ghost btn--small">Alles zurücksetzen</button>
+      <p>PixelPost · 100 % im Browser · deine Grüße bleiben bei dir · eigene Pixel-Art,
+        inspiriert von Klassikern — keine fremden Spiel-Inhalte.</p>
+    </footer>
+  </main>
+
+  <script src="js/engine.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

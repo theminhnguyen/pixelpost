@@ -1,0 +1,202 @@
+/* ===================================================================
+   PixelPost — Ersteller-Seite (dunkles Retro-Thema).
+   Die Karte selbst stylt sich komplett selbst (engine.js, Präfix pp).
+   =================================================================== */
+:root {
+  --bg: #0c1422;
+  --panel: #131e30;
+  --panel-2: #1a2740;
+  --line: rgba(255, 255, 255, .12);
+  --ink: #e8f0f8;
+  --dim: #93a5c0;
+  --accent: #5878a8;
+  --accent-hi: #a8c0e0;
+}
+
+* { margin: 0; box-sizing: border-box; }
+
+html.is-viewer main.creator { display: none; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: Inter, -apple-system, "Segoe UI", sans-serif;
+  line-height: 1.55;
+}
+
+.creator {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 40px 20px 60px;
+}
+
+/* ---------- Kopf ---------- */
+.hero { text-align: center; margin-bottom: 36px; }
+.logo {
+  font-family: "Press Start 2P", monospace;
+  font-size: clamp(22px, 6vw, 34px);
+  letter-spacing: 2px;
+  color: var(--ink);
+  text-shadow: 3px 3px 0 #0a0e14, 5px 5px 0 var(--accent);
+}
+.logo span { color: var(--accent-hi); }
+.tagline { margin-top: 16px; font-size: 17px; font-weight: 600; }
+.sub { margin-top: 10px; font-size: 14px; color: var(--dim); max-width: 560px; margin-inline: auto; }
+
+/* ---------- Schritte ---------- */
+.step {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px 22px;
+  margin-bottom: 16px;
+}
+.step h2 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.step__num {
+  font-family: "Press Start 2P", monospace;
+  font-size: 10px;
+  background: var(--accent);
+  color: #fff;
+  width: 24px; height: 24px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+.note { font-size: 12.5px; color: var(--dim); margin-top: 8px; }
+.note b { color: var(--ink); }
+
+/* ---------- Chips (Anlass / Edition) ---------- */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips button {
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 15px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: border-color .15s, background .15s;
+}
+.chips button:hover { border-color: var(--accent-hi); }
+.chips button.is-active {
+  background: var(--accent);
+  border-color: var(--accent-hi);
+  color: #fff;
+}
+.chips--edition i {
+  width: 12px; height: 12px;
+  border-radius: 3px;
+  display: inline-block;
+  border: 1px solid rgba(0, 0, 0, .35);
+}
+
+/* ---------- Eingaben ---------- */
+input[type="text"], textarea {
+  font: inherit;
+  font-size: 14px;
+  width: 100%;
+  color: var(--ink);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+input[type="text"]:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent-hi);
+}
+textarea { resize: vertical; min-height: 54px; }
+
+/* ---------- Grüße-Liste ---------- */
+.greet {
+  display: grid;
+  grid-template-columns: 180px 1fr 34px;
+  gap: 8px;
+  align-items: start;
+  margin-bottom: 10px;
+}
+.greet__del {
+  font: inherit;
+  width: 34px; height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+}
+.greet__del:hover { color: #f88; border-color: #a55; }
+.greet-foot { display: flex; align-items: center; gap: 14px; margin-top: 4px; }
+@media (max-width: 560px) {
+  .greet { grid-template-columns: 1fr 34px; }
+  .greet textarea { grid-column: 1 / -1; }
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 11px 18px;
+  cursor: pointer;
+  transition: transform .1s, border-color .15s, background .15s;
+}
+.btn:hover { border-color: var(--accent-hi); transform: translateY(-1px); }
+.btn--primary { background: var(--accent); border-color: var(--accent-hi); color: #fff; }
+.btn--primary:hover { background: #6888b8; }
+.btn--ghost { background: transparent; }
+.btn--small { font-size: 12.5px; padding: 7px 13px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* ---------- Teilen ---------- */
+.share {
+  margin-top: 14px;
+  background: var(--panel-2);
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  padding: 14px;
+}
+.share__row { display: flex; gap: 8px; }
+.share__row input { flex: 1; font-size: 12.5px; color: var(--accent-hi); }
+
+/* ---------- Fuß ---------- */
+.foot {
+  text-align: center;
+  margin-top: 28px;
+  font-size: 12px;
+  color: var(--dim);
+}
+.foot p { margin-top: 14px; max-width: 480px; margin-inline: auto; }
+
+/* ---------- Viewer-Fehlermeldung ---------- */
+.viewer-error {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  text-align: center;
+  padding: 24px;
+  background: var(--bg);
+  color: var(--ink);
+}
+.viewer-error h1 { font-size: 22px; }
+.viewer-error p { max-width: 440px; color: var(--dim); font-size: 14.5px; }
+.viewer-error a { color: var(--accent-hi); }
