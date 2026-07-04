@@ -27,8 +27,15 @@ Anlässe: 🎂 Geburtstag · 👋 Abschied · 💍 Hochzeit · 🏆 Jubiläum ·
   Live-Ansicht und Export.
 - `js/app.js` — Ersteller-Formular, URL-Codec (JSON → deflate-raw →
   base64url im Hash), Viewer-Modus, Datei-Export.
-- Canvas intern 160 × 144 (echtes Game-Boy-Maß), ganzzahlig hochskaliert,
-  4-Farben-Paletten (Blau/Rot/Gold-Edition).
+- Canvas intern 160 × 144 (echtes Game-Boy-Maß), ganzzahlig hochskaliert.
+  Raum in 4-Farben-Editions-Palette (Blau/Rot/Gold), Deko + Figuren bunt
+  (Game-Boy-Color-Gefühl).
+- Jede Figur sieht anders aus: Frisur, Haarfarbe, Hautton und Kleidungsfarbe
+  werden stabil aus dem Namen abgeleitet (gleiche Person = gleiches Männchen).
+- Grüße öffnen sich automatisch, sobald man neben einer Figur stehen bleibt;
+  ungelesene Figuren haben ein blinkendes „!", oben rechts zählt ein
+  Gelesen-Zähler mit, und wer alle Grüße gelesen hat, bekommt eine
+  kleine Fanfare.
 - Schrift: [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P)
   (SIL Open Font License, auch kommerziell frei nutzbar).
 - Sound: prozedurale Web-Audio-Bleeps, kein Asset. Stummschaltbar (🔊-Knopf),
