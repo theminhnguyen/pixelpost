@@ -1,6 +1,6 @@
 /* ===================================================================
    PixelPost App — Ersteller-Seite + Link-Viewer.
-   - Ohne Hash: Formular (Anlass, Edition, Begrüßung, Grüße-Liste),
+   - Ohne Hash: Formular (Sprache, Anlass, Begrüßung, Grüße-Liste),
      Vorschau, Link erzeugen (Grüße komprimiert in der URL), Download.
    - Mit Hash #c=… / #d=…: Karte dekodieren und direkt spielen.
    Kein Server, kein Tracking — alles bleibt im Browser bzw. im Link.
@@ -13,10 +13,84 @@
   // lädt der Browser nicht neu — dann würde der Viewer nie starten. Also: neu laden.
   window.addEventListener("hashchange", () => location.reload());
 
+  /* ---------------- Übersetzungen der Ersteller-Seite ---------------- */
+  const I18N = {
+    de: {
+      docTitle: "PixelPost — Grußkarte als Mini-Spiel im Retro-Stil",
+      tagline: "Deine Grußkarte als begehbares Mini-Spiel im Retro-Stil.",
+      sub: "Sammle Grüße von allen — jeder Gruß wird ein Männchen im Pixel-Raum. Der Empfänger läuft herum, spricht die Leute an und liest eure Nachrichten in der klassischen Dialogbox. Läuft komplett im Browser, kostenlos, ohne Anmeldung.",
+      stepLang: "Sprache der Karte",
+      stepOccasion: "Anlass wählen",
+      stepGreeting: "Begrüßung",
+      stepCollect: "Grüße sammeln",
+      stepDone: "Fertig!",
+      occ_geburtstag: "🎂 Geburtstag", occ_abschied: "👋 Abschied", occ_hochzeit: "💍 Hochzeit", occ_jubilaeum: "🏆 Jubiläum", occ_einfach: "💌 Einfach so",
+      titlePh: "z. B. Alles Gute zum 30., liebe Mia!",
+      titleNote: "Erscheint als erste Dialogbox, wenn der Empfänger die Karte öffnet. Leer lassen = Standard-Begrüßung zum Anlass.",
+      collectNote: "Jeder Gruß wird ein eigenes Männchen im Raum. Sammle die Texte z. B. per Messenger ein und trag sie hier zusammen.",
+      namePh: "Name (z. B. Oma Inge)",
+      textPh: "Gruß (z. B. Alles Liebe! Bleib wie du bist …)",
+      addGreet: "+ Gruß hinzufügen",
+      delTitle: "Gruß entfernen",
+      g_one: "Gruß", g_many: "Grüße", g_suffix: "ausgefüllt",
+      btnPreview: "▶ Vorschau spielen",
+      btnLink: "🔗 Link erstellen",
+      btnDownload: "💾 Als Datei speichern",
+      btnCopy: "Kopieren", btnCopied: "✓ Kopiert!",
+      shareNote: "Der <b>Link</b> enthält die komplette Karte (kein Server, nichts wird hochgeladen). Die <b>Datei</b> läuft sogar offline — einfach per Mail oder Messenger schicken.",
+      shareOk: "Link an den Empfänger schicken — die ganze Karte steckt im Link, kein Server nötig.",
+      shareLong: "⚠️ Sehr lange Karte — manche Messenger kürzen so lange Links. Nimm zur Sicherheit die Datei-Variante.",
+      needGreet: "Trag erst mindestens einen Gruß ein 🙂",
+      reset: "Alles zurücksetzen",
+      resetConfirm: "Wirklich alles löschen und neu anfangen?",
+      footer: "PixelPost · 100 % im Browser · deine Grüße bleiben bei dir · eigene Pixel-Art, inspiriert von Klassikern — keine fremden Spiel-Inhalte.",
+      fileName: "pixelpost-karte",
+    },
+    en: {
+      docTitle: "PixelPost — greeting card as a retro mini-game",
+      tagline: "Your greeting card as a walkable mini-game in retro style.",
+      sub: "Collect greetings from everyone — each one becomes a character in a pixel room. The recipient walks around, talks to people and reads your messages in the classic dialog box. Runs entirely in the browser, free, no sign-up.",
+      stepLang: "Card language",
+      stepOccasion: "Choose the occasion",
+      stepGreeting: "Welcome message",
+      stepCollect: "Collect greetings",
+      stepDone: "Done!",
+      occ_geburtstag: "🎂 Birthday", occ_abschied: "👋 Farewell", occ_hochzeit: "💍 Wedding", occ_jubilaeum: "🏆 Anniversary", occ_einfach: "💌 Just because",
+      titlePh: "e.g. Happy 30th, dear Mia!",
+      titleNote: "Shows as the first dialog box when the recipient opens the card. Leave empty for a default greeting matching the occasion.",
+      collectNote: "Each greeting becomes its own character in the room. Gather the texts (e.g. via messenger) and collect them here.",
+      namePh: "Name (e.g. Grandma Inge)",
+      textPh: "Greeting (e.g. All the best! Stay the way you are …)",
+      addGreet: "+ Add greeting",
+      delTitle: "Remove greeting",
+      g_one: "greeting", g_many: "greetings", g_suffix: "filled in",
+      btnPreview: "▶ Play preview",
+      btnLink: "🔗 Create link",
+      btnDownload: "💾 Save as file",
+      btnCopy: "Copy", btnCopied: "✓ Copied!",
+      shareNote: "The <b>link</b> holds the entire card (no server, nothing is uploaded). The <b>file</b> even works offline — just send it by mail or messenger.",
+      shareOk: "Send the link to the recipient — the whole card is inside the link, no server needed.",
+      shareLong: "⚠️ Very long card — some messengers truncate links this long. Use the file option to be safe.",
+      needGreet: "Please enter at least one greeting first 🙂",
+      reset: "Reset everything",
+      resetConfirm: "Really delete everything and start over?",
+      footer: "PixelPost · 100 % in the browser · your greetings stay with you · original pixel art, inspired by classics — no third-party game content.",
+      fileName: "pixelpost-card",
+    },
+  };
+  const detectLang = () => {
+    try {
+      const saved = localStorage.getItem("pixelpost_lang");
+      if (saved === "de" || saved === "en") return saved;
+    } catch (e) {}
+    return (navigator.language || "de").toLowerCase().startsWith("de") ? "de" : "en";
+  };
+
   /* ---------------- URL-Codec ----------------
-     kompaktes Format {v,t,o,e,g:[[name,text],…]} → JSON → UTF-8
+     kompaktes Format {v:2,t,o,l,g:[[name,text],…]} → JSON → UTF-8
      → deflate-raw (CompressionStream) → base64url.
-     Präfix c= komprimiert, d= unkomprimiert (Fallback alte Browser). */
+     Präfix c= komprimiert, d= unkomprimiert (Fallback alte Browser).
+     v1 (mit Editions-Feld e) wird beim Dekodieren noch akzeptiert. */
   const b64urlEnc = (u8) => {
     let s = "";
     for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]);
@@ -30,10 +104,10 @@
   };
   async function encodePayload(card) {
     const compact = {
-      v: 1,
+      v: 2,
       t: card.title || "",
       o: card.occasion || "einfach",
-      e: card.edition || "blau",
+      l: card.lang === "en" ? "en" : "de",
       g: (card.greetings || [])
         .filter((g) => (g.name || "").trim() || (g.text || "").trim())
         .map((g) => [g.name || "", g.text || ""]),
@@ -58,11 +132,11 @@
       bytes = new Uint8Array(await new Response(stream).arrayBuffer());
     }
     const c = JSON.parse(new TextDecoder().decode(bytes));
-    if (!c || c.v !== 1) throw new Error("unbekanntes-format");
+    if (!c || (c.v !== 1 && c.v !== 2)) throw new Error("unbekanntes-format");
     return {
       title: String(c.t || ""),
       occasion: String(c.o || "einfach"),
-      edition: String(c.e || "blau"),
+      lang: c.l === "en" ? "en" : "de",
       greetings: (Array.isArray(c.g) ? c.g : []).map((p) => ({ name: String(p[0] || ""), text: String(p[1] || "") })),
     };
   }
@@ -71,9 +145,9 @@
   const escHtml = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   function buildStandaloneHTML(card) {
     const json = JSON.stringify(card).replace(/</g, "\\u003c");
-    return "<!DOCTYPE html>\n<html lang=\"de\"><head><meta charset=\"utf-8\">"
+    return "<!DOCTYPE html>\n<html lang=\"" + (card.lang === "en" ? "en" : "de") + "\"><head><meta charset=\"utf-8\">"
       + "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
-      + "<title>" + escHtml(card.title || "PixelPost-Karte") + "</title>"
+      + "<title>" + escHtml(card.title || "PixelPost") + "</title>"
       + "<link rel=\"preconnect\" href=\"https://fonts.googleapis.com\"><link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossorigin>"
       + "<link href=\"https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap\" rel=\"stylesheet\">"
       + "<style>html,body{margin:0;height:100%;background:#0c1422}</style></head>"
@@ -83,13 +157,14 @@
   /* ---------------- Viewer-Modus (Link geöffnet) ---------------- */
   const APP_URL = location.origin + location.pathname;
   function showViewerError(err) {
+    const tooOld = String(err && err.message) === "browser-zu-alt";
     const box = document.createElement("div");
     box.className = "viewer-error";
-    box.innerHTML = "<h1>Ups — Karte kaputt 😕</h1>"
-      + "<p>" + (String(err && err.message) === "browser-zu-alt"
-        ? "Dein Browser ist zu alt, um diese Karte zu entpacken. Bitte aktualisiere ihn oder öffne den Link auf einem anderen Gerät."
-        : "Dieser Link ist unvollständig oder beschädigt. Bitte lass dir den Link noch einmal schicken — er muss komplett kopiert werden.")
-      + "</p><p><a href=\"" + APP_URL + "\">Selbst eine Karte erstellen →</a></p>";
+    box.innerHTML = "<h1>Karte kaputt · Card broken 😕</h1>"
+      + "<p>" + (tooOld
+        ? "Dein Browser ist zu alt, um diese Karte zu öffnen. · Your browser is too old to open this card."
+        : "Dieser Link ist unvollständig oder beschädigt — bitte komplett kopieren lassen. · This link is incomplete or damaged — please have it copied in full.")
+      + "</p><p><a href=\"" + APP_URL + "\">Selbst eine Karte erstellen · Create your own card →</a></p>";
     document.body.appendChild(box);
   }
   if (document.documentElement.classList.contains("is-viewer")) {
@@ -107,7 +182,7 @@
   const state = {
     title: "",
     occasion: "geburtstag",
-    edition: "blau",
+    lang: detectLang(),
     greetings: [{ name: "", text: "" }],
   };
 
@@ -117,7 +192,7 @@
     if (draft && Array.isArray(draft.greetings) && draft.greetings.length) {
       state.title = String(draft.title || "");
       state.occasion = String(draft.occasion || "geburtstag");
-      state.edition = String(draft.edition || "blau");
+      if (draft.lang === "de" || draft.lang === "en") state.lang = draft.lang;
       state.greetings = draft.greetings.map((g) => ({ name: String(g.name || ""), text: String(g.text || "") }));
     }
   } catch (e) {}
@@ -129,18 +204,32 @@
     }, 300);
   }
 
+  const t = (key) => (I18N[state.lang] || I18N.de)[key];
+
   function cardFromState() {
     return {
       title: state.title.trim(),
       occasion: state.occasion,
-      edition: state.edition,
+      lang: state.lang,
       greetings: state.greetings.map((g) => ({ name: g.name.trim(), text: g.text.trim() })),
     };
   }
   const filledCount = () => state.greetings.filter((g) => g.name.trim() || g.text.trim()).length;
 
-  /* ----- Anlass & Edition (Buttons mit data-value) ----- */
-  function bindPicker(containerId, key) {
+  /* ----- Sprache anwenden (statische Texte + Platzhalter) ----- */
+  function applyLang() {
+    document.documentElement.lang = state.lang;
+    document.title = t("docTitle");
+    for (const el of document.querySelectorAll("[data-i18n]")) el.textContent = t(el.dataset.i18n);
+    for (const el of document.querySelectorAll("[data-i18n-html]")) el.innerHTML = t(el.dataset.i18nHtml);
+    for (const el of document.querySelectorAll("[data-i18n-ph]")) el.placeholder = t(el.dataset.i18nPh);
+    // Aktive Sprach-/Anlass-Buttons markieren
+    for (const b of document.querySelectorAll("#langPick button")) b.classList.toggle("is-active", b.dataset.value === state.lang);
+    renderGreetings(); // Platzhalter + Zähler folgen der Sprache
+  }
+
+  /* ----- Picker (Buttons mit data-value) ----- */
+  function bindPicker(containerId, key, onChange) {
     const c = $(containerId);
     const update = () => {
       for (const b of c.querySelectorAll("button"))
@@ -151,6 +240,7 @@
       if (!b) return;
       state[key] = b.dataset.value;
       update(); saveDraft(); invalidateShare();
+      if (onChange) onChange();
     });
     update();
   }
@@ -163,13 +253,13 @@
       const row = document.createElement("div");
       row.className = "greet";
       const name = document.createElement("input");
-      name.type = "text"; name.placeholder = "Name (z. B. Oma Inge)"; name.maxLength = 24; name.value = g.name;
-      name.addEventListener("input", () => { g.name = name.value; saveDraft(); invalidateShare(); });
+      name.type = "text"; name.placeholder = t("namePh"); name.maxLength = 24; name.value = g.name;
+      name.addEventListener("input", () => { g.name = name.value; saveDraft(); invalidateShare(); updateCount(); });
       const text = document.createElement("textarea");
-      text.placeholder = "Gruß (z. B. Alles Liebe! Bleib wie du bist …)"; text.maxLength = 500; text.rows = 2; text.value = g.text;
-      text.addEventListener("input", () => { g.text = text.value; saveDraft(); invalidateShare(); });
+      text.placeholder = t("textPh"); text.maxLength = 500; text.rows = 2; text.value = g.text;
+      text.addEventListener("input", () => { g.text = text.value; saveDraft(); invalidateShare(); updateCount(); });
       const del = document.createElement("button");
-      del.type = "button"; del.className = "greet__del"; del.textContent = "✕"; del.title = "Gruß entfernen";
+      del.type = "button"; del.className = "greet__del"; del.textContent = "✕"; del.title = t("delTitle");
       del.addEventListener("click", () => {
         state.greetings.splice(i, 1);
         if (!state.greetings.length) state.greetings.push({ name: "", text: "" });
@@ -178,7 +268,11 @@
       row.appendChild(name); row.appendChild(text); row.appendChild(del);
       listEl.appendChild(row);
     });
-    $("greetCount").textContent = filledCount() + " " + (filledCount() === 1 ? "Gruß" : "Grüße") + " ausgefüllt";
+    updateCount();
+  }
+  function updateCount() {
+    const n = filledCount();
+    $("greetCount").textContent = n + " " + (n === 1 ? t("g_one") : t("g_many")) + " " + t("g_suffix");
   }
   $("addGreet").addEventListener("click", () => {
     state.greetings.push({ name: "", text: "" });
@@ -203,55 +297,53 @@
   const shareBox = $("shareBox"), shareUrl = $("shareUrl"), shareHint = $("shareHint");
   function invalidateShare() { shareBox.hidden = true; }
   $("btnLink").addEventListener("click", async () => {
-    if (!filledCount()) { alert("Trag erst mindestens einen Gruß ein 🙂"); return; }
+    if (!filledCount()) { alert(t("needGreet")); return; }
     const payload = await encodePayload(cardFromState());
     const url = APP_URL + "#" + payload;
     shareUrl.value = url;
     shareBox.hidden = false;
-    shareHint.textContent = url.length > 7000
-      ? "⚠️ Sehr lange Karte — manche Messenger kürzen so lange Links. Nimm zur Sicherheit die Datei-Variante."
-      : "Link an den Empfänger schicken — die ganze Karte steckt im Link, kein Server nötig.";
+    shareHint.textContent = url.length > 7000 ? t("shareLong") : t("shareOk");
     shareUrl.select();
   });
   $("btnCopy").addEventListener("click", async () => {
     try {
       await navigator.clipboard.writeText(shareUrl.value);
-      $("btnCopy").textContent = "✓ Kopiert!";
     } catch (e) {
       shareUrl.select();
       document.execCommand && document.execCommand("copy");
-      $("btnCopy").textContent = "✓ Kopiert!";
     }
-    setTimeout(() => { $("btnCopy").textContent = "Kopieren"; }, 1600);
+    $("btnCopy").textContent = t("btnCopied");
+    setTimeout(() => { $("btnCopy").textContent = t("btnCopy"); }, 1600);
   });
 
   /* ----- Download (Offline-Datei) ----- */
   $("btnDownload").addEventListener("click", () => {
-    if (!filledCount()) { alert("Trag erst mindestens einen Gruß ein 🙂"); return; }
+    if (!filledCount()) { alert(t("needGreet")); return; }
     const card = cardFromState();
     const blob = new Blob([buildStandaloneHTML(card)], { type: "text/html" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = (card.title || "pixelpost-karte").replace(/[^\wäöüÄÖÜß\-]+/g, "_").slice(0, 60) + ".html";
+    a.download = (card.title || t("fileName")).replace(/[^\wäöüÄÖÜß\-]+/g, "_").slice(0, 60) + ".html";
     a.click();
     URL.revokeObjectURL(a.href);
   });
 
   /* ----- Alles zurücksetzen ----- */
   $("btnReset").addEventListener("click", () => {
-    if (!confirm("Wirklich alles löschen und neu anfangen?")) return;
-    state.title = ""; state.occasion = "geburtstag"; state.edition = "blau";
+    if (!confirm(t("resetConfirm"))) return;
+    state.title = ""; state.occasion = "geburtstag";
     state.greetings = [{ name: "", text: "" }];
     titleEl.value = "";
     try { localStorage.removeItem("pixelpost_draft"); } catch (e) {}
-    bindPicker("occasionPick", "occasion"); bindPicker("editionPick", "edition");
+    bindPicker("occasionPick", "occasion");
     renderGreetings(); invalidateShare();
   });
 
+  /* ----- Init ----- */
   bindPicker("occasionPick", "occasion");
-  bindPicker("editionPick", "edition");
-  renderGreetings();
+  bindPicker("langPick", "lang", () => { try { localStorage.setItem("pixelpost_lang", state.lang); } catch (e) {} applyLang(); });
+  applyLang(); // ruft renderGreetings() mit
 
   // Test-Hooks (nur für automatisierte Prüfung)
-  if (window.__PP_DEBUG) window.__ppApp = { state, encodePayload, decodePayload, buildStandaloneHTML, cardFromState };
+  if (window.__PP_DEBUG) window.__ppApp = { state, encodePayload, decodePayload, buildStandaloneHTML, cardFromState, applyLang };
 })();

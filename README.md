@@ -8,10 +8,12 @@ Figur (Pfeiltasten/WASD, am Handy D-Pad + A-Knopf), läuft zu den Männchen und
 liest die Grüße in der klassischen Dialogbox mit Schreibmaschinen-Text.
 
 Anlässe: 🎂 Geburtstag · 👋 Abschied · 💍 Hochzeit · 🏆 Jubiläum · 💌 Einfach so
+Sprache der Karte wählbar: **Deutsch / English** (komplett übersetzt, auch die
+Ersteller-Seite).
 
 ## Wie es funktioniert
 
-1. **Erstellen:** Auf der Seite Anlass, Farb-Edition und Begrüßung wählen,
+1. **Erstellen:** Auf der Seite Sprache, Anlass und Begrüßung wählen,
    Grüße eintragen.
 2. **Teilen:** Entweder als **Link** (die komplette Karte steckt komprimiert in
    der URL — kein Server, nichts wird hochgeladen) oder als **HTML-Datei**
@@ -28,8 +30,15 @@ Anlässe: 🎂 Geburtstag · 👋 Abschied · 💍 Hochzeit · 🏆 Jubiläum ·
 - `js/app.js` — Ersteller-Formular, URL-Codec (JSON → deflate-raw →
   base64url im Hash), Viewer-Modus, Datei-Export.
 - Canvas intern 160 × 144 (echtes Game-Boy-Maß), ganzzahlig hochskaliert.
-  Raum in 4-Farben-Editions-Palette (Blau/Rot/Gold), Deko + Figuren bunt
+  Einheitlicher Look: klassischer Blau-Raum, Deko + Figuren bunt
   (Game-Boy-Color-Gefühl).
+- **Der Raum wächst mit der Gruß-Anzahl** — in Breite *und* Höhe. Die Figuren
+  stehen auf einem Gitter (garantiert alle erreichbar), die Kamera scrollt bei
+  großen Karten in beide Richtungen (getestet bis 50 Grüße). Viel Deko:
+  Bücherregal, Stehlampen, Wanduhr, Bild, Pflanzen, Geschenke, plus
+  **anlassabhängige** Stücke (Kuchen + Ballons, Koffer + Umzugskartons,
+  Herz-Teppich + Blumen, Pokal + Bowle + Wimpelkette) und Konfetti/Blütenblätter
+  auf dem Boden.
 - Jede Figur sieht anders aus: Frisur, Haarfarbe, Hautton und Kleidungsfarbe
   werden stabil aus dem Namen abgeleitet (gleiche Person = gleiches Männchen).
 - Grüße öffnen sich automatisch, sobald man neben einer Figur stehen bleibt;

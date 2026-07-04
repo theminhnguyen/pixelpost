@@ -5,40 +5,57 @@
    - wird per PIXELPOST_RUNTIME.toString() in die Download-HTML
      eingebettet (kein Modul, keine Doppelpflege!)
    Alles eigene Pixel-Art (prozedural gezeichnet), keine fremden Assets.
-   Raum/Wände bleiben in der Editions-Palette getönt, Deko und Figuren
-   sind bunt (Game-Boy-Color-Gefühl).
+   Ein einheitlicher Look: klassischer Game-Boy-Blau-Raum, Deko + Figuren
+   bunt (Game-Boy-Color-Gefühl). Sprache DE/EN.
 
    PIXELPOST_RUNTIME(CARD, opts?)
-     CARD = { title, occasion, edition, greetings:[{name,text}], appUrl }
+     CARD = { title, occasion, lang, greetings:[{name,text}], appUrl }
      opts = { onClose } → Vorschau-Modus mit ✕-Knopf + Esc
    =================================================================== */
 function PIXELPOST_RUNTIME(CARD, opts) {
   "use strict";
   const O = opts || {};
 
-  /* ---------- Editionen (4-Farben-Grundpaletten, hell → dunkel) ---------- */
-  const EDITIONS = {
-    blau: ["#e8f0f8", "#a8c0e0", "#5878a8", "#182840"],
-    rot:  ["#f8ece4", "#e8b4a0", "#c05038", "#3c1410"],
-    gold: ["#f8f4e0", "#e0c878", "#a08028", "#342808"],
-  };
-  const PAL = EDITIONS[CARD.edition] || EDITIONS.blau;
+  /* ---------- Palette (klassischer Blau-Raum, hell → dunkel) ---------- */
+  const PAL = ["#e8f0f8", "#a8c0e0", "#5878a8", "#182840"];
   const INK = PAL[3], PAPER = "#f8f8f8";
 
-  /* ---------- Bunte Akzentfarben (editionsunabhängig, GBC-Gefühl) ---------- */
+  /* ---------- Bunte Akzentfarben (GBC-Gefühl) ---------- */
   const C = {
     red: "#c04040", green: "#3f8850", leaf: "#2f6636", yellow: "#e8c850",
     brown: "#8a5a2c", tan: "#c89858", pink: "#e87898", white: "#f8f8f8",
     sky: "#98d0e8", eye: "#202020",
   };
 
-  /* ---------- Anlässe (Deko + Standard-Begrüßung) ---------- */
+  /* ---------- Sprache (DE/EN) — alle In-Game-Texte ---------- */
+  const LANG = CARD.lang === "en" ? "en" : "de";
+  const STR = {
+    de: {
+      hint: "Pfeile/WASD gehen · <b>E</b> sprechen",
+      suffix: " - Sprich mit allen Leuten!",
+      allRead: "Das waren alle Grüße - schön, dass du da warst!",
+      empty1: "NOCH KEINE", empty2: "GRÜSSE …",
+      brand: "✉ erstellt mit PixelPost",
+      intro: { einfach: "Eine Karte für dich!", geburtstag: "Alles Gute zum Geburtstag!", abschied: "Mach's gut - auf Wiedersehen!", hochzeit: "Alles Gute zur Hochzeit!", jubilaeum: "Glückwunsch zum Jubiläum!" },
+    },
+    en: {
+      hint: "Arrows/WASD move · <b>E</b> talk",
+      suffix: " - Go talk to everyone!",
+      allRead: "That was everyone - thanks for stopping by!",
+      empty1: "NO GREETINGS", empty2: "HERE YET …",
+      brand: "✉ made with PixelPost",
+      intro: { einfach: "A card just for you!", geburtstag: "Happy Birthday!", abschied: "Farewell - all the best!", hochzeit: "Congrats on your wedding!", jubilaeum: "Happy anniversary!" },
+    },
+  };
+  const L = STR[LANG];
+
+  /* ---------- Anlässe (nur Deko-Konfiguration; Texte kommen aus L.intro) ---------- */
   const OCC = {
-    einfach:    { intro: "Eine Karte für dich!",          table: "envelope", side: null, sprinkle: null },
-    geburtstag: { intro: "Alles Gute zum Geburtstag!",    table: "cake",     side: ["balloonRed", "balloonYellow"], sprinkle: [C.red, C.yellow, C.green] },
-    abschied:   { intro: "Mach's gut - auf Wiedersehen!", table: "envelope", side: ["suitcase", "box"], sprinkle: null },
-    hochzeit:   { intro: "Alles Gute zur Hochzeit!",      table: "envelope", side: ["flowerRed", "flowerYellow"], heartRug: true, sprinkle: [C.pink, C.white] },
-    jubilaeum:  { intro: "Glückwunsch zum Jubiläum!",     table: "trophy",   side: ["flag", "flag"], sprinkle: [C.yellow, C.red] },
+    einfach:    { table: "envelope", side: null,                            extra: "plant",        festive: false, sprinkle: null },
+    geburtstag: { table: "cake",     side: ["balloonRed", "balloonYellow"], extra: "presents",     festive: true,  sprinkle: [C.red, C.yellow, C.green] },
+    abschied:   { table: "envelope", side: ["suitcase", "box"],             extra: "box",          festive: false, sprinkle: null },
+    hochzeit:   { table: "envelope", side: ["flowerRed", "flowerYellow"],   extra: "flowerYellow", festive: true,  heartRug: true, sprinkle: [C.pink, C.white] },
+    jubilaeum:  { table: "trophy",   side: ["flag", "flag"],                extra: "drinks",       festive: true,  sprinkle: [C.yellow, C.red] },
   };
   const occ = OCC[CARD.occasion] || OCC.einfach;
 
@@ -245,6 +262,65 @@ function PIXELPOST_RUNTIME(CARD, opts) {
     x.fillStyle = C.red; x.fillRect(8, 2, 5, 2); x.fillRect(8, 4, 3, 2); x.fillRect(8, 6, 2, 1); // Wimpel
     x.fillStyle = C.yellow; x.fillRect(9, 3, 1, 1);
   });
+  T.shelf = makeTile((x) => {
+    x.drawImage(T.floor, 0, 0);
+    x.fillStyle = PAL[3]; x.fillRect(1, 1, 14, 13);        // Regal-Korpus
+    x.fillStyle = C.tan; x.fillRect(2, 2, 12, 11);
+    x.fillStyle = PAL[3]; x.fillRect(2, 6, 12, 1); x.fillRect(2, 10, 12, 1); // Regalböden
+    const books = [C.red, C.green, C.yellow, C.sky, C.pink];
+    for (let i = 0; i < 5; i++) {
+      x.fillStyle = books[i]; x.fillRect(3 + i * 2, 3, 2, 3);            // Buchrücken oben
+      x.fillStyle = books[(i + 2) % 5]; x.fillRect(3 + i * 2, 7, 2, 3);  // Buchrücken unten
+    }
+    x.fillStyle = PAL[3]; x.fillRect(1, 14, 3, 1); x.fillRect(12, 14, 3, 1); // Füße
+  });
+  T.lamp = makeTile((x) => {
+    x.drawImage(T.floor, 0, 0);
+    x.fillStyle = C.yellow; x.fillRect(5, 2, 6, 4);        // Lampenschirm
+    x.fillStyle = C.white; x.fillRect(6, 3, 1, 2);         // Lichtschein
+    x.fillStyle = PAL[3]; x.fillRect(5, 2, 6, 1);
+    x.fillRect(7, 6, 2, 7); x.fillRect(5, 13, 6, 1);       // Ständer + Fuß
+  });
+  T.drinks = makeTile((x) => {
+    tableBase(x);
+    x.fillStyle = C.red; x.fillRect(4, 5, 5, 3);           // Bowle
+    x.fillStyle = C.pink; x.fillRect(4, 5, 5, 1);
+    x.fillStyle = PAL[3]; x.fillRect(3, 8, 7, 1);          // Schüsselrand
+    x.fillStyle = C.white; x.fillRect(11, 6, 2, 2); x.fillRect(11, 8, 2, 1); // Becher
+  });
+  T.presents = makeTile((x) => {
+    x.drawImage(T.floor, 0, 0);
+    x.fillStyle = C.red; x.fillRect(2, 8, 6, 6);           // großes Geschenk
+    x.fillStyle = C.yellow; x.fillRect(4, 8, 2, 6); x.fillRect(3, 6, 1, 2); x.fillRect(6, 6, 1, 2); // Band + Schleife
+    x.fillStyle = C.green; x.fillRect(9, 10, 5, 4);        // kleines Geschenk
+    x.fillStyle = C.pink; x.fillRect(11, 10, 1, 4); x.fillRect(10, 9, 3, 1);
+  });
+  T.clock = makeTile((x) => {
+    x.drawImage(T.wall, 0, 0);
+    x.fillStyle = PAL[3]; x.fillRect(4, 3, 8, 9);          // Uhrengehäuse
+    x.fillStyle = C.white; x.fillRect(5, 4, 6, 7);
+    x.fillStyle = PAL[3]; x.fillRect(7, 5, 1, 3); x.fillRect(8, 7, 2, 1); // Zeiger
+  });
+  T.picture = makeTile((x) => {
+    x.drawImage(T.wall, 0, 0);
+    x.fillStyle = C.brown; x.fillRect(3, 3, 10, 9);        // Rahmen
+    x.fillStyle = C.sky; x.fillRect(4, 4, 8, 3);           // Himmel
+    x.fillStyle = C.green; x.fillRect(4, 7, 8, 4);         // Wiese
+    x.fillStyle = C.red; x.fillRect(6, 8, 1, 1);
+    x.fillStyle = C.yellow; x.fillRect(9, 9, 1, 1);        // Blumen
+  });
+  function buntingTile(c1, c2) { // Wimpelkette an der Wand (festliche Anlässe)
+    return makeTile((x) => {
+      x.drawImage(T.wall, 0, 0);
+      x.fillStyle = PAL[3]; x.fillRect(0, 2, 16, 1);       // Schnur
+      [[2, c1], [10, c2]].forEach(([bx, col]) => {
+        x.fillStyle = col;
+        x.fillRect(bx, 3, 4, 2); x.fillRect(bx + 1, 5, 2, 1);
+      });
+    });
+  }
+  T.buntingA = buntingTile(C.red, C.yellow);
+  T.buntingB = buntingTile(C.green, C.pink);
 
   /* ---------- Sound (Web Audio, prozedurale Retro-Bleeps) ---------- */
   const SND = { ctx: null, muted: false };
@@ -299,7 +375,7 @@ function PIXELPOST_RUNTIME(CARD, opts) {
   const ctx = cv.getContext("2d"); ctx.imageSmoothingEnabled = false;
 
   const hint = mk("pp__hint");
-  hint.innerHTML = "Pfeile/WASD gehen · <b>E</b> sprechen";
+  hint.innerHTML = L.hint;
   overlay.appendChild(hint);
 
   const pad = mk("pp__pad"); overlay.appendChild(pad);
@@ -330,50 +406,72 @@ function PIXELPOST_RUNTIME(CARD, opts) {
   if (CARD.appUrl && !O.onClose) {
     const brand = mk("pp__brand", "a");
     brand.href = CARD.appUrl; brand.target = "_blank"; brand.rel = "noopener";
-    brand.textContent = "✉ erstellt mit PixelPost";
+    brand.textContent = L.brand;
     overlay.appendChild(brand);
   }
 
-  /* ---------- Raum ---------- */
+  /* ---------- Raum (wächst in Breite UND Höhe mit der Gruß-Anzahl) ----------
+     NPCs stehen auf einem Gitter: gerade Spalten (x=2,4,6…), ungerade Reihen
+     (y=3,5,7…), mit einer freien Lücke dazwischen → jede Figur ist von der
+     Seite/von unten erreichbar. Mehr Grüße = breiterer + höherer Raum, die
+     Kamera scrollt dann in beide Richtungen. */
   const greet = (CARD.greetings || []).filter((g) => (g.text || "").trim() || (g.name || "").trim());
-  const COLS = 10;
-  const ROWS = Math.max(9, 7 + Math.ceil(greet.length / 3) * 2); // wächst mit Grüßen
+  const n = greet.length;
+  const npcCols = n === 0 ? 0 : Math.min(6, Math.max(3, Math.ceil(Math.sqrt(n * 1.3))));
+  const npcRows = n === 0 ? 0 : Math.ceil(n / npcCols);
+  const COLS = Math.max(10, npcCols * 2 + 3);
+  const ROWS = Math.max(11, npcRows * 2 + 7);
+  const midX = Math.floor(COLS / 2);
+  const festive = !!occ.festive;
+
   const solid = new Set();
   const tiles = [];
   for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
     let img = T.floor;
-    if (y === 0 || y === 1) { img = (y === 0 || x % 3 !== 1) ? T.wall : T.window; solid.add(x + ",0"); solid.add(x + ",1"); }
-    else if (T.sprinkle && (x * 7 + y * 5) % 11 === 3) img = T.sprinkle; // Konfetti/Blüten
+    if (y <= 1) {
+      solid.add(x + ",0"); solid.add(x + ",1");
+      if (y === 0) img = T.wall;
+      else if (x === 2) img = T.clock;                                   // Wanduhr
+      else if (x === COLS - 3) img = T.picture;                          // Bild
+      else if (festive && x > 2 && x < COLS - 3 && x % 2 === 0) img = (x % 4 === 0 ? T.buntingA : T.buntingB); // Wimpelkette
+      else if (x % 3 === 1) img = T.window;                             // Fenster mit Himmel
+      else img = T.wall;
+    } else if (T.sprinkle && (x * 7 + y * 5) % 11 === 3) img = T.sprinkle; // Konfetti/Blüten
     tiles.push({ x, y, img });
   }
-  // Teppich in der Mitte (Hochzeit: mit Herz)
+  // Willkommens-Teppich unten, unter dem Spieler-Start (Hochzeit: mit Herz)
   const rugTile = occ.heartRug ? T.rugHeart : T.rug;
-  for (let y = 3; y <= 4; y++) for (let x = 3; x <= 6; x++) tiles.push({ x, y, img: rugTile });
-  // Deko: Pflanzen in den Ecken, Tisch oben (linke Tischkachel trägt die Anlass-Deko)
+  for (let y = ROWS - 3; y <= ROWS - 2; y++) for (let x = midX - 1; x <= midX + 1; x++) tiles.push({ x, y, img: rugTile });
+
+  // Deko (alle solide): Kaminsims-Reihe y=2, Ecken, Seiten, Boden
   const deco = [
     [0, 2, T.plant], [COLS - 1, 2, T.plant], [0, ROWS - 1, T.plant], [COLS - 1, ROWS - 1, T.plant],
-    [4, 2, T[occ.table]], [5, 2, T.envelope],
+    [1, 2, T.shelf], [COLS - 2, 2, T.lamp],
+    [midX - 1, 2, T[occ.table]], [midX, 2, T.envelope],
+    [0, Math.floor(ROWS / 2), T.lamp], [COLS - 1, Math.floor(ROWS / 2), T.plant],
+    [1, ROWS - 2, T[occ.extra]], [COLS - 2, ROWS - 2, T.presents],
   ];
-  // Anlass-Deko links/rechts neben dem Tisch — auf Spalte 1/8, damit sie
-  // nicht direkt über den Köpfen der ersten Männchen-Reihe (Spalte 2/7) hängt
-  if (occ.side) { deco.push([1, 2, T[occ.side[0]]]); deco.push([8, 2, T[occ.side[1]]]); }
-  deco.forEach(([x, y, img]) => { tiles.push({ x, y, img }); solid.add(x + "," + y); });
+  if (occ.side) { deco.push([3, 2, T[occ.side[0]]]); deco.push([COLS - 4, 2, T[occ.side[1]]]); }
+  deco.forEach(([x, y, img]) => {
+    if (!img) return;
+    tiles.push({ x, y, img }); solid.add(x + "," + y);
+  });
 
   /* ---------- NPCs (ein Männchen pro Gruß, Aussehen aus dem Namen) ----------
-     ⚠️ Schleife läuft über spots.length < greet.length — bei 0 Grüßen darf sie
-     gar nicht erst starten (Math.max(n,1) wäre eine Endlosschleife, war Live-Bug). */
+     ⚠️ Gitter-Schleifen laufen nur, solange spots < n — bei 0 Grüßen läuft
+     gar nichts (Endlosschleife war ein früher Live-Bug). */
   const spots = [];
-  for (let row = 3; spots.length < greet.length; row += 2)
-    for (const gx of [2, 7, 4]) { if (spots.length < greet.length) spots.push([gx, row + (gx === 4 ? 1 : 0)]); }
+  for (let r = 0; r < npcRows && spots.length < n; r++)
+    for (let c = 0; c < npcCols && spots.length < n; c++) spots.push([2 + c * 2, 3 + r * 2]);
   const npcs = greet.map((g, i) => ({
     g, x: spots[i][0], y: spots[i][1], dir: "down", read: false,
     spr: figureSet(lookOf(g.name, i)),
   }));
-  npcs.forEach((n) => solid.add(n.x + "," + n.y));
+  npcs.forEach((nn) => solid.add(nn.x + "," + nn.y));
 
-  /* ---------- Spieler (klassischer Look in Editionsfarben) ---------- */
+  /* ---------- Spieler (klassischer Look) ---------- */
   const sprites = figureSet({ skin: SKINS[0], hair: PAL[3], tunic: PAL[2], style: 0 });
-  const P = { x: Math.floor(COLS / 2), y: ROWS - 2, px: 0, py: 0, dir: "up", step: 0, moving: false, mx: 0, my: 0, prog: 0 };
+  const P = { x: midX, y: ROWS - 2, px: 0, py: 0, dir: "up", step: 0, moving: false, mx: 0, my: 0, prog: 0 };
   P.px = P.x * 16; P.py = P.y * 16;
 
   /* ---------- Dialog ---------- */
@@ -434,7 +532,7 @@ function PIXELPOST_RUNTIME(CARD, opts) {
       // Alle Grüße gelesen? → einmalige Gratulation + Fanfare
       if (!celebrated && npcs.length && npcs.every((n) => n.read)) {
         celebrated = true;
-        openDialog("Das waren alle Grüße - schön, dass du da warst!");
+        openDialog(L.allRead);
         fanfare();
       }
     }
@@ -515,21 +613,22 @@ function PIXELPOST_RUNTIME(CARD, opts) {
       }
     }
 
-    // Kamera folgt vertikal (Raum ist genau 160 breit)
+    // Kamera folgt dem Spieler horizontal + vertikal, an den Rändern geklemmt
+    const camX = Math.max(0, Math.min(P.px - 72, COLS * 16 - 160));
     const camY = Math.max(0, Math.min(P.py - 64, ROWS * 16 - 144));
 
     ctx.fillStyle = PAL[3]; ctx.fillRect(0, 0, 160, 144);
-    for (const t of tiles) ctx.drawImage(t.img, t.x * 16, t.y * 16 - camY);
-    for (const n of npcs) {
-      ctx.drawImage(n.spr[n.dir][0], n.x * 16, n.y * 16 - camY - 2);
+    for (const t of tiles) ctx.drawImage(t.img, t.x * 16 - camX, t.y * 16 - camY);
+    for (const np of npcs) {
+      ctx.drawImage(np.spr[np.dir][0], np.x * 16 - camX, np.y * 16 - camY - 2);
       // "!"-Hinweis über allen noch ungelesenen Grüßen (blinkt sanft)
-      if (!n.read && !D.open && frame % 40 < 28) {
+      if (!np.read && !D.open && frame % 40 < 28) {
         ctx.fillStyle = C.red;
-        ctx.fillRect(n.x * 16 + 7, n.y * 16 - camY - 8, 2, 4);
-        ctx.fillRect(n.x * 16 + 7, n.y * 16 - camY - 3, 2, 2);
+        ctx.fillRect(np.x * 16 - camX + 7, np.y * 16 - camY - 8, 2, 4);
+        ctx.fillRect(np.x * 16 - camX + 7, np.y * 16 - camY - 3, 2, 2);
       }
     }
-    ctx.drawImage(sprites[P.dir][P.moving ? P.step : 0], P.px, P.py - camY - 2);
+    ctx.drawImage(sprites[P.dir][P.moving ? P.step : 0], P.px - camX, P.py - camY - 2);
 
     // Gelesen-Zähler (kleines Papier-Schild oben rechts)
     if (npcs.length) {
@@ -568,7 +667,7 @@ function PIXELPOST_RUNTIME(CARD, opts) {
     } else if (npcs.length === 0) {
       ctx.fillStyle = PAPER; ctx.fillRect(2, 110, 156, 26);
       ctx.font = "8px 'Press Start 2P', monospace"; ctx.textBaseline = "top"; ctx.fillStyle = INK;
-      ctx.fillText("NOCH KEINE", 10, 114); ctx.fillText("GRUESSE …", 10, 124);
+      ctx.fillText(L.empty1, 10, 114); ctx.fillText(L.empty2, 10, 124);
     }
 
     raf = requestAnimationFrame(loop);
@@ -588,12 +687,27 @@ function PIXELPOST_RUNTIME(CARD, opts) {
   if (xBtn) xBtn.onclick = close;
 
   /* ---------- Start ---------- */
-  const introText = (CARD.title || "").trim() || occ.intro;
+  const introText = (CARD.title || "").trim() || L.intro[CARD.occasion] || L.intro.einfach;
   const boot = () => {
     if (closed) return;
-    openDialog(introText + " - Sprich mit allen Leuten!");
-    if (window.__PP_DEBUG)
-      window.__ppCard = { P, npcs, D, aPress, close, state: () => ({ x: P.x, y: P.y, dir: P.dir, dialog: D.open, npcs: npcs.length, rows: ROWS, read: npcs.filter((n) => n.read).length }) };
+    openDialog(introText + L.suffix);
+    if (window.__PP_DEBUG) {
+      // Sind alle Figuren vom Spieler-Start aus erreichbar? (BFS über begehbare Felder)
+      const allReachable = () => {
+        const seen = new Set([P.x + "," + P.y]);
+        const q = [[P.x, P.y]];
+        const steps = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+        while (q.length) {
+          const [x, y] = q.shift();
+          for (const [dx, dy] of steps) {
+            const nx = x + dx, ny = y + dy, k = nx + "," + ny;
+            if (!seen.has(k) && walkable(nx, ny)) { seen.add(k); q.push([nx, ny]); }
+          }
+        }
+        return npcs.every((nn) => steps.some(([dx, dy]) => seen.has((nn.x + dx) + "," + (nn.y + dy))));
+      };
+      window.__ppCard = { P, npcs, D, aPress, close, allReachable, state: () => ({ x: P.x, y: P.y, dir: P.dir, dialog: D.open, npcs: npcs.length, cols: COLS, rows: ROWS, read: npcs.filter((n) => n.read).length }) };
+    }
     raf = requestAnimationFrame(loop);
   };
   (document.fonts ? document.fonts.load("8px 'Press Start 2P'").catch(() => {}).then(boot) : Promise.resolve().then(boot));
