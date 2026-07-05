@@ -132,6 +132,52 @@ function PIXELPOST_RUNTIME(CARD, opts) {
     };
   }
 
+  /* ---------- Spieler-Figur (Held, extra Details) ----------
+     Eigene, detailreichere Figur als die NPCs: Nase, Kragen + Knopfleiste,
+     Gürtel, zweifarbige Beine (Hose + Schuhe) und ein Haar-Glanz. So hebt sich
+     die gesteuerte Figur klar von der Menge ab. */
+  const HERO = {
+    skin: "#f8d8b8", hair: "#7a4a24", hairHi: "#9c6636", eye: C.eye, nose: "#e6b48c",
+    tunic: "#3f8850", tunicHi: "#63b079", belt: "#3a2412", pants: "#38508f", shoes: "#241a10",
+  };
+  const setAt = (row, i, ch) => (row[i] === "." ? row : row.slice(0, i) + ch + row.slice(i + 1));
+  function heroGrid(base, withNose) {
+    const r = base.slice();
+    r[13] = r[13].replace(/3/g, "p");                 // Hose
+    r[14] = r[14].replace(/3/g, "k");                 // Schuhe
+    r[12] = r[12].replace(/2/g, "b");                 // Gürtel quer über die Taille
+    r[8] = setAt(setAt(r[8], 7, "T"), 8, "T");        // Kragen
+    r[10] = setAt(r[10], 7, "T"); r[11] = setAt(r[11], 7, "T"); // Knopfleiste
+    r[2] = setAt(r[2], 6, "H"); r[3] = setAt(r[3], 5, "H");     // Haar-Glanz
+    if (withNose) r[6] = setAt(r[6], 8, "n");
+    return r;
+  }
+  function renderHero(base, withNose, flip) {
+    const cnv = document.createElement("canvas"); cnv.width = 16; cnv.height = 16;
+    const x = cnv.getContext("2d");
+    heroGrid(base, withNose).forEach((row, ry) => {
+      for (let rx = 0; rx < 16; rx++) {
+        const ch = row[rx];
+        if (ch === "." || ch == null) continue;
+        x.fillStyle =
+          ch === "0" ? HERO.skin : ch === "e" ? HERO.eye : ch === "n" ? HERO.nose :
+          ch === "2" ? HERO.tunic : ch === "T" ? HERO.tunicHi : ch === "b" ? HERO.belt :
+          ch === "p" ? HERO.pants : ch === "k" ? HERO.shoes : ch === "H" ? HERO.hairHi :
+          ry <= 7 ? HERO.hair : PAL[3];               // '3': Kopf = Haar, sonst Umriss
+        x.fillRect(flip ? 15 - rx : rx, ry, 1, 1);
+      }
+    });
+    return cnv;
+  }
+  function heroSet() {
+    return {
+      down: [renderHero(SPR.down0, true), renderHero(SPR.down1, true)],
+      up: [renderHero(SPR.up0, false), renderHero(SPR.up1, false)],
+      right: [renderHero(SPR.side0, true), renderHero(SPR.side1, true)],
+      left: [renderHero(SPR.side0, true, true), renderHero(SPR.side1, true, true)],
+    };
+  }
+
   /* ---------- Kacheln (16×16, prozedural) ---------- */
   function makeTile(draw) {
     const cnv = document.createElement("canvas"); cnv.width = 16; cnv.height = 16;
@@ -469,8 +515,8 @@ function PIXELPOST_RUNTIME(CARD, opts) {
   }));
   npcs.forEach((nn) => solid.add(nn.x + "," + nn.y));
 
-  /* ---------- Spieler (klassischer Look) ---------- */
-  const sprites = figureSet({ skin: SKINS[0], hair: PAL[3], tunic: PAL[2], style: 0 });
+  /* ---------- Spieler (detaillierte Helden-Figur) ---------- */
+  const sprites = heroSet();
   const P = { x: midX, y: ROWS - 2, px: 0, py: 0, dir: "up", step: 0, moving: false, mx: 0, my: 0, prog: 0 };
   P.px = P.x * 16; P.py = P.y * 16;
 
@@ -597,12 +643,12 @@ function PIXELPOST_RUNTIME(CARD, opts) {
         }
       }
       if (P.moving) {
-        P.prog += 1 / 13; // ~13 Frames pro Kachel (gemütliches Tempo)
+        P.prog += 1 / 16; // ~16 Frames pro Kachel (noch gemütlicheres Schritttempo)
         if (P.prog >= 1) { P.x = P.mx; P.y = P.my; P.moving = false; P.prog = 0; autoGreet(); }
         const fx = P.moving ? P.x + (P.mx - P.x) * P.prog : P.x;
         const fy = P.moving ? P.y + (P.my - P.y) * P.prog : P.y;
         P.px = Math.round(fx * 16); P.py = Math.round(fy * 16);
-        if (frame % 9 === 0) P.step = 1 - P.step;
+        if (frame % 10 === 0) P.step = 1 - P.step;
       } else { P.px = P.x * 16; P.py = P.y * 16; P.step = 0; }
 
       // Figuren schauen sich ab und zu um (deterministisch pseudozufällig)
@@ -706,7 +752,7 @@ function PIXELPOST_RUNTIME(CARD, opts) {
         }
         return npcs.every((nn) => steps.some(([dx, dy]) => seen.has((nn.x + dx) + "," + (nn.y + dy))));
       };
-      window.__ppCard = { P, npcs, D, aPress, close, allReachable, state: () => ({ x: P.x, y: P.y, dir: P.dir, dialog: D.open, npcs: npcs.length, cols: COLS, rows: ROWS, read: npcs.filter((n) => n.read).length }) };
+      window.__ppCard = { P, npcs, D, aPress, close, allReachable, sprites, state: () => ({ x: P.x, y: P.y, dir: P.dir, dialog: D.open, npcs: npcs.length, cols: COLS, rows: ROWS, read: npcs.filter((n) => n.read).length }) };
     }
     raf = requestAnimationFrame(loop);
   };
