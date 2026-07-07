@@ -519,9 +519,9 @@ function PIXELPOST_RUNTIME(CARD, opts) {
      Richtungen. */
   const greet = (CARD.greetings || []).filter((g) => (g.text || "").trim() || (g.name || "").trim());
   const n = greet.length;
-  const roomNeed = Math.max(6, n) * 8; // gewünschte begehbare Streufläche
-  const COLS = Math.max(11, Math.min(20, Math.ceil(Math.sqrt(roomNeed))));
-  const ROWS = Math.max(12, Math.min(32, Math.ceil(roomNeed / (COLS - 2)) + 6));
+  const roomNeed = Math.max(6, n) * 10; // gewünschte begehbare Streufläche (großzügig für Abstand)
+  const COLS = Math.max(11, Math.min(22, Math.ceil(Math.sqrt(roomNeed))));
+  const ROWS = Math.max(12, Math.min(34, Math.ceil(roomNeed / (COLS - 2)) + 6));
   const midX = Math.floor(COLS / 2);
   const festive = !!occ.festive;
 
@@ -594,8 +594,9 @@ function PIXELPOST_RUNTIME(CARD, opts) {
         for (let t = 0; t < 300 && !found; t++) {
           const cand = interior[(rng() * interior.length) | 0];
           if (used.has(cand[0] + "," + cand[1])) continue;
+          // Mindestabstand Manhattan 3 → nie zwei Figuren am selben Nachbarfeld (kein Flankieren)
           let clash = false;
-          for (const p of placed) if (Math.max(Math.abs(p[0] - cand[0]), Math.abs(p[1] - cand[1])) < 2) { clash = true; break; }
+          for (const p of placed) if (Math.abs(p[0] - cand[0]) + Math.abs(p[1] - cand[1]) < 3) { clash = true; break; }
           if (!clash) found = cand;
         }
         if (!found) { ok = false; break; }
@@ -662,7 +663,7 @@ function PIXELPOST_RUNTIME(CARD, opts) {
   /* ---------- Mit einer Figur sprechen (manuell oder automatisch) ---------- */
   const OPP = { up: "down", down: "up", left: "right", right: "left" };
   const DELTA = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
-  let autoRef = null;   // Figur, deren Gruß gerade automatisch aufging (verhindert Dauerschleife)
+  let autoArmed = true; // Auto-Gruß erlaubt? Nach jedem Schritt neu scharf, nach Auto-Popup aus
   let celebrated = false;
 
   /* ---------- Konfetti (Abschluss-Feier) ---------- */
@@ -680,22 +681,25 @@ function PIXELPOST_RUNTIME(CARD, opts) {
     n.dir = OPP[dir];
     n.read = true;
     n.hopUntil = frame + 16;   // kleiner Freude-Hüpfer
-    autoRef = n;
     const name = (n.g.name || "").trim();
     openDialog((name ? name.toUpperCase() + ": " : "") + (n.g.text || "…"), n);
     blip(880, 0.06, 0.035);
   }
-  // Nach jedem Schritt: Steht eine Figur direkt daneben? → Gruß poppt auf.
-  function autoGreet() {
-    const order = [P.dir].concat(["up", "down", "left", "right"].filter((d) => d !== P.dir));
-    for (const dir of order) {
-      const n = npcs.find((n) => n.x === P.x + DELTA[dir][0] && n.y === P.y + DELTA[dir][1]);
-      if (n) {
-        if (autoRef !== n) talkTo(n, dir);
-        return;
-      }
+  /* Auto-Gruß: poppt nur bei STILLSTAND neben einer NOCH UNGELESENEN Figur auf
+     (Vorbeilaufen unterbricht nicht), oder wenn man in eine ungelesene Figur
+     hineinläuft. Gelesene ziehen NICHT mehr rein. Höchstens einmal pro Halt
+     (autoArmed) → man kommt jederzeit durch Weggehen los. */
+  const findAdj = (dir) => npcs.find((nn) => !nn.read && nn.x === P.x + DELTA[dir][0] && nn.y === P.y + DELTA[dir][1]);
+  function tryAutoGreet() {
+    if (!autoArmed || P.moving || D.open) return;
+    const held = dirFromKeys();
+    if (held) { // in eine ungelesene Figur hineinlaufen → ansprechen; sonst nichts (kein Vorbeilauf-Popup)
+      const n = findAdj(held);
+      if (n) { talkTo(n, held); autoArmed = false; }
+      return;
     }
-    autoRef = null; // von allen Figuren weggelaufen → nächste darf wieder aufpoppen
+    const order = [P.dir].concat(["up", "down", "left", "right"].filter((d) => d !== P.dir));
+    for (const dir of order) { const n = findAdj(dir); if (n) { talkTo(n, dir); autoArmed = false; return; } }
   }
   function aPress() {
     ensureAudio();
@@ -782,12 +786,13 @@ function PIXELPOST_RUNTIME(CARD, opts) {
       }
       if (P.moving) {
         P.prog += 1 / 16; // ~16 Frames pro Kachel (noch gemütlicheres Schritttempo)
-        if (P.prog >= 1) { P.x = P.mx; P.y = P.my; P.moving = false; P.prog = 0; autoGreet(); }
+        if (P.prog >= 1) { P.x = P.mx; P.y = P.my; P.moving = false; P.prog = 0; autoArmed = true; } // Schritt fertig → wieder scharf
         const fx = P.moving ? P.x + (P.mx - P.x) * P.prog : P.x;
         const fy = P.moving ? P.y + (P.my - P.y) * P.prog : P.y;
         P.px = Math.round(fx * 16); P.py = Math.round(fy * 16);
         if (frame % 10 === 0) P.step = 1 - P.step;
       } else { P.px = P.x * 16; P.py = P.y * 16; P.step = 0; }
+      tryAutoGreet(); // nur im Stillstand / beim Hineinlaufen, nur ungelesene
 
       // Figuren schauen sich ab und zu um (deterministisch pseudozufällig)
       if (npcs.length && frame % 160 === 0) {
