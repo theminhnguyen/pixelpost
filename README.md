@@ -41,10 +41,20 @@ Ersteller-Seite).
   auf dem Boden.
 - Jede Figur sieht anders aus: Frisur, Haarfarbe, Hautton und Kleidungsfarbe
   werden stabil aus dem Namen abgeleitet (gleiche Person = gleiches Männchen).
+  Die gesteuerte Spielfigur ist extra detailliert (Nase, Kragen, Gürtel, Hose,
+  Schuhe) und in 6 Varianten wählbar.
+- Optionales **Emoji pro Gruß**, das über der Figur schwebt; beim Ansprechen
+  zeigt die Dialogbox ein **Porträt** des Absenders und die Figur hüpft kurz.
 - Grüße öffnen sich automatisch, sobald man neben einer Figur stehen bleibt;
-  ungelesene Figuren haben ein blinkendes „!", oben rechts zählt ein
-  Gelesen-Zähler mit, und wer alle Grüße gelesen hat, bekommt eine
-  kleine Fanfare.
+  ungelesene Figuren haben ein blinkendes „!", ein **Kompass-Pfeil** weist bei
+  großen Karten zur nächsten ungelesenen Figur, oben rechts zählt ein
+  Gelesen-Zähler mit, und wer alle Grüße gelesen hat, bekommt eine Fanfare
+  mit **Konfetti-Regen**.
+- Sanfte **Hintergrund-Chiptune** je Anlass (stummschaltbar, pausiert im
+  Hintergrund-Tab). **Barrierefreiheit:** alle Grüße sind zusätzlich als
+  Textliste abrufbar (Screenreader + „≡"-Knopf).
+- **QR-Code** zum Link auf der Ersteller-Seite (lokal im Browser erzeugt) und
+  eine **Link-Vorschau** (Open Graph) für hübsche Vorschaubilder in Messengern.
 - Schrift: [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P)
   (SIL Open Font License, auch kommerziell frei nutzbar).
 - Sound: prozedurale Web-Audio-Bleeps, kein Asset. Stummschaltbar (🔊-Knopf),

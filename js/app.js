@@ -45,6 +45,12 @@
       resetConfirm: "Wirklich alles löschen und neu anfangen?",
       footer: "PixelPost · 100 % im Browser · deine Grüße bleiben bei dir · eigene Pixel-Art, inspiriert von Klassikern — keine fremden Spiel-Inhalte.",
       fileName: "pixelpost-karte",
+      stepHero: "Deine Spielfigur",
+      heroNote: "So sieht die Figur aus, die der Empfänger durch den Raum steuert.",
+      emojiPh: "🙂", emojiTitle: "Emoji für diesen Gruß (schwebt über der Figur)",
+      qrNote: "Oder scannen lassen:",
+      qrAlt: "QR-Code zum Karten-Link",
+      qrTooLong: "Diese Karte ist zu lang für einen QR-Code — nimm den Link oder die Datei.",
     },
     en: {
       docTitle: "PixelPost — greeting card as a retro mini-game",
@@ -76,6 +82,12 @@
       resetConfirm: "Really delete everything and start over?",
       footer: "PixelPost · 100 % in the browser · your greetings stay with you · original pixel art, inspired by classics — no third-party game content.",
       fileName: "pixelpost-card",
+      stepHero: "Your character",
+      heroNote: "This is the figure the recipient steers through the room.",
+      emojiPh: "🙂", emojiTitle: "Emoji for this greeting (floats above the figure)",
+      qrNote: "Or let them scan:",
+      qrAlt: "QR code for the card link",
+      qrTooLong: "This card is too long for a QR code — use the link or file instead.",
     },
   };
   const detectLang = () => {
@@ -104,13 +116,15 @@
   };
   async function encodePayload(card) {
     const compact = {
-      v: 2,
+      v: 3,
       t: card.title || "",
       o: card.occasion || "einfach",
       l: card.lang === "en" ? "en" : "de",
+      h: card.hero | 0,
+      // g-Eintrag: [name, text] oder [name, text, emoji] (Emoji nur wenn gesetzt)
       g: (card.greetings || [])
         .filter((g) => (g.name || "").trim() || (g.text || "").trim())
-        .map((g) => [g.name || "", g.text || ""]),
+        .map((g) => ((g.emoji || "").trim() ? [g.name || "", g.text || "", (g.emoji || "").trim()] : [g.name || "", g.text || ""])),
     };
     const bytes = new TextEncoder().encode(JSON.stringify(compact));
     if (typeof CompressionStream !== "undefined") {
@@ -132,12 +146,13 @@
       bytes = new Uint8Array(await new Response(stream).arrayBuffer());
     }
     const c = JSON.parse(new TextDecoder().decode(bytes));
-    if (!c || (c.v !== 1 && c.v !== 2)) throw new Error("unbekanntes-format");
+    if (!c || (c.v !== 1 && c.v !== 2 && c.v !== 3)) throw new Error("unbekanntes-format");
     return {
       title: String(c.t || ""),
       occasion: String(c.o || "einfach"),
       lang: c.l === "en" ? "en" : "de",
-      greetings: (Array.isArray(c.g) ? c.g : []).map((p) => ({ name: String(p[0] || ""), text: String(p[1] || "") })),
+      hero: c.h | 0,
+      greetings: (Array.isArray(c.g) ? c.g : []).map((p) => ({ name: String(p[0] || ""), text: String(p[1] || ""), emoji: String(p[2] || "") })),
     };
   }
 
@@ -183,7 +198,8 @@
     title: "",
     occasion: "geburtstag",
     lang: detectLang(),
-    greetings: [{ name: "", text: "" }],
+    hero: 0,
+    greetings: [{ name: "", text: "", emoji: "" }],
   };
 
   // Entwurf laden (Autosave, localStorage)
@@ -193,7 +209,8 @@
       state.title = String(draft.title || "");
       state.occasion = String(draft.occasion || "geburtstag");
       if (draft.lang === "de" || draft.lang === "en") state.lang = draft.lang;
-      state.greetings = draft.greetings.map((g) => ({ name: String(g.name || ""), text: String(g.text || "") }));
+      state.hero = draft.hero | 0;
+      state.greetings = draft.greetings.map((g) => ({ name: String(g.name || ""), text: String(g.text || ""), emoji: String(g.emoji || "") }));
     }
   } catch (e) {}
   let saveTimer = 0;
@@ -211,7 +228,8 @@
       title: state.title.trim(),
       occasion: state.occasion,
       lang: state.lang,
-      greetings: state.greetings.map((g) => ({ name: g.name.trim(), text: g.text.trim() })),
+      hero: state.hero | 0,
+      greetings: state.greetings.map((g) => ({ name: g.name.trim(), text: g.text.trim(), emoji: (g.emoji || "").trim() })),
     };
   }
   const filledCount = () => state.greetings.filter((g) => g.name.trim() || g.text.trim()).length;
@@ -252,6 +270,10 @@
     state.greetings.forEach((g, i) => {
       const row = document.createElement("div");
       row.className = "greet";
+      const emoji = document.createElement("input");
+      emoji.type = "text"; emoji.className = "greet__emoji"; emoji.placeholder = t("emojiPh");
+      emoji.maxLength = 4; emoji.value = g.emoji || ""; emoji.title = t("emojiTitle");
+      emoji.addEventListener("input", () => { g.emoji = emoji.value; saveDraft(); invalidateShare(); });
       const name = document.createElement("input");
       name.type = "text"; name.placeholder = t("namePh"); name.maxLength = 24; name.value = g.name;
       name.addEventListener("input", () => { g.name = name.value; saveDraft(); invalidateShare(); updateCount(); });
@@ -262,10 +284,10 @@
       del.type = "button"; del.className = "greet__del"; del.textContent = "✕"; del.title = t("delTitle");
       del.addEventListener("click", () => {
         state.greetings.splice(i, 1);
-        if (!state.greetings.length) state.greetings.push({ name: "", text: "" });
+        if (!state.greetings.length) state.greetings.push({ name: "", text: "", emoji: "" });
         renderGreetings(); saveDraft(); invalidateShare();
       });
-      row.appendChild(name); row.appendChild(text); row.appendChild(del);
+      row.appendChild(emoji); row.appendChild(name); row.appendChild(text); row.appendChild(del);
       listEl.appendChild(row);
     });
     updateCount();
@@ -275,10 +297,10 @@
     $("greetCount").textContent = n + " " + (n === 1 ? t("g_one") : t("g_many")) + " " + t("g_suffix");
   }
   $("addGreet").addEventListener("click", () => {
-    state.greetings.push({ name: "", text: "" });
+    state.greetings.push({ name: "", text: "", emoji: "" });
     renderGreetings(); saveDraft(); invalidateShare();
-    const inputs = listEl.querySelectorAll(".greet input");
-    if (inputs.length) inputs[inputs.length - 1].focus();
+    const rows = listEl.querySelectorAll(".greet");
+    if (rows.length) { const nm = rows[rows.length - 1].querySelector("input:not(.greet__emoji)"); if (nm) nm.focus(); }
   });
 
   /* ----- Titel ----- */
@@ -295,7 +317,7 @@
 
   /* ----- Link erzeugen + kopieren ----- */
   const shareBox = $("shareBox"), shareUrl = $("shareUrl"), shareHint = $("shareHint");
-  function invalidateShare() { shareBox.hidden = true; }
+  function invalidateShare() { shareBox.hidden = true; const qb = $("qrBox"); if (qb) qb.hidden = true; }
   $("btnLink").addEventListener("click", async () => {
     if (!filledCount()) { alert(t("needGreet")); return; }
     const payload = await encodePayload(cardFromState());
@@ -303,6 +325,7 @@
     shareUrl.value = url;
     shareBox.hidden = false;
     shareHint.textContent = url.length > 7000 ? t("shareLong") : t("shareOk");
+    renderQR(url);
     shareUrl.select();
   });
   $("btnCopy").addEventListener("click", async () => {
@@ -331,19 +354,60 @@
   /* ----- Alles zurücksetzen ----- */
   $("btnReset").addEventListener("click", () => {
     if (!confirm(t("resetConfirm"))) return;
-    state.title = ""; state.occasion = "geburtstag";
-    state.greetings = [{ name: "", text: "" }];
+    state.title = ""; state.occasion = "geburtstag"; state.hero = 0;
+    state.greetings = [{ name: "", text: "", emoji: "" }];
     titleEl.value = "";
     try { localStorage.removeItem("pixelpost_draft"); } catch (e) {}
     bindPicker("occasionPick", "occasion");
+    updateHeroPicker();
     renderGreetings(); invalidateShare();
   });
 
+  /* ----- Figuren-Wähler (Vorschau-Sprites der 6 Presets) ----- */
+  const HERO_PREVIEW = ["#3f8850", "#c04040", "#4060b8", "#8848a0", "#d07828", "#2f8f8f"];
+  const heroPick = $("heroPick");
+  function updateHeroPicker() {
+    for (const b of heroPick.querySelectorAll("button")) b.classList.toggle("is-active", (b.dataset.value | 0) === (state.hero | 0));
+  }
+  HERO_PREVIEW.forEach((col, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "hero-opt"; b.dataset.value = String(i);
+    b.style.setProperty("--hc", col);
+    b.setAttribute("aria-label", "Figur " + (i + 1));
+    heroPick.appendChild(b);
+  });
+  heroPick.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-value]");
+    if (!b) return;
+    state.hero = b.dataset.value | 0;
+    updateHeroPicker(); saveDraft(); invalidateShare();
+  });
+
+  /* ----- QR-Code zum Link (Bibliothek von CDN, nur Ersteller-Seite) ----- */
+  function renderQR(url) {
+    const box = $("qrBox"), img = $("qrImg"), note = $("qrNote");
+    if (!box) return;
+    if (typeof qrcode === "undefined" || url.length > 1200) {
+      box.hidden = true;
+      if (url.length > 1200) { note.textContent = t("qrTooLong"); note.hidden = false; } else note.hidden = true;
+      return;
+    }
+    try {
+      const qr = qrcode(0, "M");        // Typ 0 = automatische Version
+      qr.addData(url); qr.make();
+      img.src = qr.createDataURL(4, 8); // Zellgröße 4px, Rand 8 Module
+      img.alt = t("qrAlt");
+      note.textContent = t("qrNote"); note.hidden = false;
+      box.hidden = false;
+    } catch (e) { box.hidden = true; note.textContent = t("qrTooLong"); note.hidden = false; }
+  }
+
   /* ----- Init ----- */
   bindPicker("occasionPick", "occasion");
-  bindPicker("langPick", "lang", () => { try { localStorage.setItem("pixelpost_lang", state.lang); } catch (e) {} applyLang(); });
+  bindPicker("langPick", "lang", () => { try { localStorage.setItem("pixelpost_lang", state.lang); } catch (e) {} applyLang(); updateHeroPicker(); });
+  updateHeroPicker();
   applyLang(); // ruft renderGreetings() mit
 
   // Test-Hooks (nur für automatisierte Prüfung)
-  if (window.__PP_DEBUG) window.__ppApp = { state, encodePayload, decodePayload, buildStandaloneHTML, cardFromState, applyLang };
+  if (window.__PP_DEBUG) window.__ppApp = { state, encodePayload, decodePayload, buildStandaloneHTML, cardFromState, applyLang, renderQR };
 })();

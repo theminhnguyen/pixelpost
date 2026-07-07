@@ -120,13 +120,34 @@ input[type="text"]:focus, textarea:focus {
 }
 textarea { resize: vertical; min-height: 54px; }
 
+/* ---------- Figuren-Wähler ---------- */
+.chips--hero { gap: 10px; }
+.hero-opt {
+  width: 40px; height: 40px;
+  border-radius: 10px;
+  border: 2px solid var(--line);
+  background:
+    radial-gradient(circle at 50% 30%, #f8d8b8 0 22%, transparent 23%),
+    linear-gradient(var(--hc), var(--hc));
+  background-size: 100% 100%;
+  cursor: pointer;
+  transition: transform .1s, border-color .15s;
+}
+.hero-opt:hover { transform: translateY(-2px); }
+.hero-opt.is-active { border-color: var(--accent-hi); box-shadow: 0 0 0 2px var(--accent); }
+
 /* ---------- Grüße-Liste ---------- */
 .greet {
   display: grid;
-  grid-template-columns: 180px 1fr 34px;
+  grid-template-columns: 44px 170px 1fr 34px;
   gap: 8px;
   align-items: start;
   margin-bottom: 10px;
+}
+.greet__emoji {
+  text-align: center;
+  padding: 10px 4px;
+  font-size: 17px;
 }
 .greet__del {
   font: inherit;
@@ -140,7 +161,7 @@ textarea { resize: vertical; min-height: 54px; }
 .greet__del:hover { color: #f88; border-color: #a55; }
 .greet-foot { display: flex; align-items: center; gap: 14px; margin-top: 4px; }
 @media (max-width: 560px) {
-  .greet { grid-template-columns: 1fr 34px; }
+  .greet { grid-template-columns: 44px 1fr 34px; }
   .greet textarea { grid-column: 1 / -1; }
 }
 
@@ -174,6 +195,14 @@ textarea { resize: vertical; min-height: 54px; }
 }
 .share__row { display: flex; gap: 8px; }
 .share__row input { flex: 1; font-size: 12.5px; color: var(--accent-hi); }
+.qr { margin-top: 10px; text-align: center; }
+.qr img {
+  width: 168px; height: 168px;
+  image-rendering: pixelated;
+  border-radius: 8px;
+  background: #fff;
+  padding: 6px;
+}
 
 /* ---------- Fuß ---------- */
 .foot {

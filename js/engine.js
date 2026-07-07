@@ -36,6 +36,7 @@ function PIXELPOST_RUNTIME(CARD, opts) {
       allRead: "Das waren alle Grüße - schön, dass du da warst!",
       empty1: "NOCH KEINE", empty2: "GRÜSSE …",
       brand: "✉ erstellt mit PixelPost",
+      listTitle: "Alle Grüße als Text", close: "Schließen", noName: "Jemand",
       intro: { einfach: "Eine Karte für dich!", geburtstag: "Alles Gute zum Geburtstag!", abschied: "Mach's gut - auf Wiedersehen!", hochzeit: "Alles Gute zur Hochzeit!", jubilaeum: "Glückwunsch zum Jubiläum!" },
     },
     en: {
@@ -44,6 +45,7 @@ function PIXELPOST_RUNTIME(CARD, opts) {
       allRead: "That was everyone - thanks for stopping by!",
       empty1: "NO GREETINGS", empty2: "HERE YET …",
       brand: "✉ made with PixelPost",
+      listTitle: "All greetings as text", close: "Close", noName: "Someone",
       intro: { einfach: "A card just for you!", geburtstag: "Happy Birthday!", abschied: "Farewell - all the best!", hochzeit: "Congrats on your wedding!", jubilaeum: "Happy anniversary!" },
     },
   };
@@ -135,11 +137,17 @@ function PIXELPOST_RUNTIME(CARD, opts) {
   /* ---------- Spieler-Figur (Held, extra Details) ----------
      Eigene, detailreichere Figur als die NPCs: Nase, Kragen + Knopfleiste,
      Gürtel, zweifarbige Beine (Hose + Schuhe) und ein Haar-Glanz. So hebt sich
-     die gesteuerte Figur klar von der Menge ab. */
-  const HERO = {
-    skin: "#f8d8b8", hair: "#7a4a24", hairHi: "#9c6636", eye: C.eye, nose: "#e6b48c",
-    tunic: "#3f8850", tunicHi: "#63b079", belt: "#3a2412", pants: "#38508f", shoes: "#241a10",
-  };
+     die gesteuerte Figur klar von der Menge ab. Aussehen wählbar (CARD.hero). */
+  const HERO_PRESETS = [
+    { skin: "#f8d8b8", hair: "#7a4a24", hairHi: "#9c6636", tunic: "#3f8850", tunicHi: "#63b079", pants: "#38508f" }, // Grün/Braun
+    { skin: "#f8d8b8", hair: "#e8c860", hairHi: "#f4e090", tunic: "#c04040", tunicHi: "#e07070", pants: "#3a2a5a" }, // Rot/Blond
+    { skin: "#e0a878", hair: "#181818", hairHi: "#444444", tunic: "#4060b8", tunicHi: "#6888d8", pants: "#2a2a3a" }, // Blau/Schwarz
+    { skin: "#f8d8b8", hair: "#b04820", hairHi: "#d06840", tunic: "#8848a0", tunicHi: "#a868c0", pants: "#402038" }, // Lila/Rot
+    { skin: "#a86838", hair: "#2a1a10", hairHi: "#5a3a20", tunic: "#d07828", tunicHi: "#f0a050", pants: "#2a3a4a" }, // Orange/Dunkel
+    { skin: "#f8d8b8", hair: "#c8c8c8", hairHi: "#f0f0f0", tunic: "#2f8f8f", tunicHi: "#4fb0b0", pants: "#333333" }, // Türkis/Grau
+  ];
+  const heroIdx = Math.min(HERO_PRESETS.length - 1, Math.max(0, (CARD.hero | 0)));
+  const HERO = Object.assign({ eye: C.eye, nose: "#e6b48c", belt: "#3a2412", shoes: "#241a10" }, HERO_PRESETS[heroIdx]);
   const setAt = (row, i, ch) => (row[i] === "." ? row : row.slice(0, i) + ch + row.slice(i + 1));
   function heroGrid(base, withNose) {
     const r = base.slice();
@@ -372,19 +380,22 @@ function PIXELPOST_RUNTIME(CARD, opts) {
   const SND = { ctx: null, muted: false };
   try { SND.muted = localStorage.getItem("pixelpost_muted") === "1"; } catch (e) {}
   function ensureAudio() {
-    if (SND.ctx || SND.muted) return;
-    try {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (AC) SND.ctx = new AC();
-    } catch (e) {}
+    if (SND.muted) return;
+    if (!SND.ctx) {
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) SND.ctx = new AC();
+      } catch (e) {}
+    }
+    if (SND.ctx) startMusic();
   }
-  function blip(freq, dur, vol, delay) {
+  function blip(freq, dur, vol, delay, type) {
     if (SND.muted || !SND.ctx) return;
     try {
       if (SND.ctx.state === "suspended") SND.ctx.resume();
       const t = SND.ctx.currentTime + (delay || 0);
       const o = SND.ctx.createOscillator(), g = SND.ctx.createGain();
-      o.type = "square"; o.frequency.value = freq;
+      o.type = type || "square"; o.frequency.value = freq;
       g.gain.setValueAtTime(vol || 0.03, t);
       g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.05));
       o.connect(g); g.connect(SND.ctx.destination);
@@ -394,6 +405,26 @@ function PIXELPOST_RUNTIME(CARD, opts) {
   function fanfare() { // kleine Abschluss-Melodie (C-E-G-C)
     [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => blip(f, 0.14, 0.035, i * 0.11));
   }
+
+  /* ---------- Hintergrund-Musik (sanfte Chiptune-Schleife je Anlass) ---------- */
+  const A = 440, C5 = 523.25, D5 = 587.33, E5 = 659.25, F4 = 349.23, G4 = 392, Ab4 = 415.30, B4 = 493.88, G5 = 783.99, A5 = 880;
+  const MELODIES = {
+    cheerful: [C5, E5, G5, E5, D5, E5, G5, 0, A5, G5, E5, D5, C5, D5, E5, 0],
+    soft:     [G4, C5, E5, C5, A, C5, 0, 0, F4, A, C5, A, G4, 0, 0, 0],
+    wistful:  [A, C5, E5, 0, D5, C5, A, 0, Ab4, B4, 0, 0, A, G4, 0, 0],
+  };
+  const MEL_FOR = { geburtstag: "cheerful", jubilaeum: "cheerful", einfach: "cheerful", hochzeit: "soft", abschied: "wistful" };
+  const melody = MELODIES[MEL_FOR[CARD.occasion] || "cheerful"];
+  function startMusic() {
+    if (SND.musicTimer || SND.muted || !SND.ctx) return;
+    let i = 0;
+    SND.musicTimer = setInterval(() => {
+      if (SND.muted || !SND.ctx) { return; }
+      const f = melody[i % melody.length]; i++;
+      if (f) blip(f, 0.22, 0.02, 0, "triangle");
+    }, 268);
+  }
+  function stopMusic() { if (SND.musicTimer) { clearInterval(SND.musicTimer); SND.musicTimer = null; } }
 
   /* ---------- DOM + CSS (komplett selbst gebaut, Präfix pp; kein
      globales html/body-Styling, damit die Vorschau die Seite nicht kaputtmacht) ---------- */
@@ -406,14 +437,20 @@ function PIXELPOST_RUNTIME(CARD, opts) {
     ".pp__dpad button{font-size:17px;border-radius:10px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.1);color:#fff;touch-action:none}" +
     ".pp__dpad .pp-up{grid-column:2;grid-row:1}.pp__dpad .pp-left{grid-column:1;grid-row:2}.pp__dpad .pp-right{grid-column:3;grid-row:2}.pp__dpad .pp-down{grid-column:2;grid-row:2}" +
     ".pp__a{width:64px;height:64px;border-radius:50%;border:1px solid rgba(255,255,255,.3);background:#a83248;color:#fff;font-weight:700;font-size:19px;pointer-events:auto;touch-action:none}" +
-    ".pp__mute,.pp__x{position:fixed;top:14px;width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.42);color:#fff;font-size:15px;cursor:pointer;opacity:.85}" +
-    ".pp__mute:hover,.pp__x:hover{opacity:1}" +
+    ".pp__mute,.pp__x,.pp__listbtn{position:fixed;top:14px;width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.42);color:#fff;font-size:15px;cursor:pointer;opacity:.85}" +
+    ".pp__mute:hover,.pp__x:hover,.pp__listbtn:hover{opacity:1}" +
+    ".pp__listbtn{left:14px;font-size:18px}" +
+    ".pp__sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}" +
+    ".pp__list{position:fixed;inset:0;z-index:99991;overflow:auto;padding:28px 22px;background:rgba(8,12,20,.96);color:#e8f0f8;font-family:Inter,-apple-system,'Segoe UI',sans-serif}.pp__list[hidden]{display:none}" +
+    ".pp__list h2{font-size:18px;margin:0 auto 14px;max-width:640px}.pp__list dl{max-width:640px;margin:0 auto}.pp__list dt{font-weight:700;margin-top:14px;color:#a8c0e0}.pp__list dd{margin:2px 0 0;line-height:1.5;white-space:pre-wrap}" +
+    ".pp__listclose{display:block;margin:24px auto 0;padding:10px 20px;border-radius:10px;border:1px solid rgba(255,255,255,.25);background:#5878a8;color:#fff;font:inherit;font-weight:600;cursor:pointer}" +
     ".pp__brand{position:fixed;bottom:14px;right:14px;font-size:11px;color:rgba(255,255,255,.45);text-decoration:none}.pp__brand:hover{color:rgba(255,255,255,.8)}";
   const style = document.createElement("style");
   style.textContent = CSS;
   document.head.appendChild(style);
 
   const mk = (cls, tag) => { const d = document.createElement(tag || "div"); d.className = cls; return d; };
+  const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const overlay = mk("pp"); document.body.appendChild(overlay);
   const cv = document.createElement("canvas");
   cv.width = 160; cv.height = 144; cv.className = "pp__screen";
@@ -440,7 +477,8 @@ function PIXELPOST_RUNTIME(CARD, opts) {
     SND.muted = !SND.muted;
     muteBtn.textContent = SND.muted ? "🔇" : "🔊";
     try { localStorage.setItem("pixelpost_muted", SND.muted ? "1" : "0"); } catch (e) {}
-    if (!SND.muted) { ensureAudio(); blip(880, 0.06, 0.035); }
+    if (SND.muted) stopMusic();
+    else { ensureAudio(); blip(880, 0.06, 0.035); }
   };
 
   let xBtn = null;
@@ -510,7 +548,8 @@ function PIXELPOST_RUNTIME(CARD, opts) {
   for (let r = 0; r < npcRows && spots.length < n; r++)
     for (let c = 0; c < npcCols && spots.length < n; c++) spots.push([2 + c * 2, 3 + r * 2]);
   const npcs = greet.map((g, i) => ({
-    g, x: spots[i][0], y: spots[i][1], dir: "down", read: false,
+    g, x: spots[i][0], y: spots[i][1], dir: "down", read: false, hopUntil: 0,
+    emoji: (g.emoji || "").trim().slice(0, 8),
     spr: figureSet(lookOf(g.name, i)),
   }));
   npcs.forEach((nn) => solid.add(nn.x + "," + nn.y));
@@ -520,8 +559,26 @@ function PIXELPOST_RUNTIME(CARD, opts) {
   const P = { x: midX, y: ROWS - 2, px: 0, py: 0, dir: "up", step: 0, moving: false, mx: 0, my: 0, prog: 0 };
   P.px = P.x * 16; P.py = P.y * 16;
 
+  /* ---------- Barrierefreiheit: alle Grüße als Text ----------
+     Immer als sr-only-Liste im DOM (Screenreader) + auf Knopfdruck als
+     sichtbares Panel (wer nicht spielen kann/will). */
+  const introText = (CARD.title || "").trim() || L.intro[CARD.occasion] || L.intro.einfach;
+  const listInner = "<h2>" + esc(introText) + "</h2><dl>"
+    + greet.map((g) => "<dt>" + esc((g.name || "").trim() || L.noName) + "</dt><dd>" + esc(g.text || "") + "</dd>").join("")
+    + "</dl>";
+  const srList = mk("pp__sr"); srList.setAttribute("aria-label", L.listTitle); srList.innerHTML = listInner;
+  overlay.appendChild(srList);
+  const listBtn = mk("pp__listbtn", "button"); listBtn.type = "button"; listBtn.textContent = "≡";
+  listBtn.title = L.listTitle; listBtn.setAttribute("aria-label", L.listTitle);
+  overlay.appendChild(listBtn);
+  const listPanel = mk("pp__list"); listPanel.setAttribute("role", "dialog"); listPanel.hidden = true;
+  listPanel.innerHTML = listInner + "<button type='button' class='pp__listclose'>" + esc(L.close) + "</button>";
+  overlay.appendChild(listPanel);
+  listBtn.onclick = () => { listPanel.hidden = false; };
+  listPanel.addEventListener("click", (e) => { if (e.target === listPanel || e.target.classList.contains("pp__listclose")) listPanel.hidden = true; });
+
   /* ---------- Dialog ---------- */
-  const D = { open: false, pages: [], page: 0, shown: 0 };
+  const D = { open: false, pages: [], page: 0, shown: 0, speaker: null };
   function wrap(text, width) {
     const words = String(text).split(/\s+/); const lines = []; let line = "";
     for (const w of words) {
@@ -531,10 +588,11 @@ function PIXELPOST_RUNTIME(CARD, opts) {
     if (line) lines.push(line);
     return lines;
   }
-  function openDialog(text) {
-    const lines = wrap(text);
+  function openDialog(text, speaker) {
+    // Mit Porträt (Absender) ist links weniger Platz → schmaler umbrechen
+    const lines = wrap(text, speaker ? 15 : 17);
     D.pages = []; for (let i = 0; i < lines.length; i += 2) D.pages.push(lines.slice(i, i + 2));
-    D.page = 0; D.shown = 0; D.open = true;
+    D.page = 0; D.shown = 0; D.open = true; D.speaker = speaker || null;
   }
 
   /* ---------- Mit einer Figur sprechen (manuell oder automatisch) ---------- */
@@ -542,13 +600,25 @@ function PIXELPOST_RUNTIME(CARD, opts) {
   const DELTA = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
   let autoRef = null;   // Figur, deren Gruß gerade automatisch aufging (verhindert Dauerschleife)
   let celebrated = false;
+
+  /* ---------- Konfetti (Abschluss-Feier) ---------- */
+  const CONFETTI_COLORS = [C.red, C.yellow, C.green, C.pink, C.sky, HERO.tunic];
+  const confetti = [];
+  function spawnConfetti() {
+    for (let i = 0; i < 60; i++) confetti.push({
+      x: Math.random() * 160, y: -Math.random() * 60 - 4,
+      vy: 0.5 + Math.random() * 1.1, vx: (Math.random() - 0.5) * 0.6,
+      c: CONFETTI_COLORS[i % CONFETTI_COLORS.length], s: Math.random() < 0.5 ? 2 : 3,
+    });
+  }
   function talkTo(n, dir) {
     P.dir = dir;
     n.dir = OPP[dir];
     n.read = true;
+    n.hopUntil = frame + 16;   // kleiner Freude-Hüpfer
     autoRef = n;
     const name = (n.g.name || "").trim();
-    openDialog((name ? name.toUpperCase() + ": " : "") + (n.g.text || "…"));
+    openDialog((name ? name.toUpperCase() + ": " : "") + (n.g.text || "…"), n);
     blip(880, 0.06, 0.035);
   }
   // Nach jedem Schritt: Steht eine Figur direkt daneben? → Gruß poppt auf.
@@ -580,6 +650,7 @@ function PIXELPOST_RUNTIME(CARD, opts) {
         celebrated = true;
         openDialog(L.allRead);
         fanfare();
+        spawnConfetti();
       }
     }
   }
@@ -604,6 +675,9 @@ function PIXELPOST_RUNTIME(CARD, opts) {
   function onKeyUp(e) { keys[e.key.toLowerCase()] = false; }
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
+  // Musik pausieren, solange der Tab im Hintergrund ist
+  function onVisibility() { if (document.hidden) stopMusic(); else if (!SND.muted && SND.ctx) startMusic(); }
+  document.addEventListener("visibilitychange", onVisibility);
 
   // Touch: D-Pad + A-Knopf (setzen dieselben Key-Flags)
   const isTouch = window.matchMedia("(pointer: coarse)").matches;
@@ -664,17 +738,46 @@ function PIXELPOST_RUNTIME(CARD, opts) {
     const camY = Math.max(0, Math.min(P.py - 64, ROWS * 16 - 144));
 
     ctx.fillStyle = PAL[3]; ctx.fillRect(0, 0, 160, 144);
-    for (const t of tiles) ctx.drawImage(t.img, t.x * 16 - camX, t.y * 16 - camY);
+    // Kacheln (nur sichtbare zeichnen — Performance bei großen Räumen)
+    for (const t of tiles) {
+      const sx = t.x * 16 - camX, sy = t.y * 16 - camY;
+      if (sx > -16 && sx < 160 && sy > -16 && sy < 144) ctx.drawImage(t.img, sx, sy);
+    }
     for (const np of npcs) {
-      ctx.drawImage(np.spr[np.dir][0], np.x * 16 - camX, np.y * 16 - camY - 2);
-      // "!"-Hinweis über allen noch ungelesenen Grüßen (blinkt sanft)
-      if (!np.read && !D.open && frame % 40 < 28) {
+      const sx = np.x * 16 - camX, sy = np.y * 16 - camY;
+      if (sx < -16 || sx > 160 || sy < -20 || sy > 150) continue; // Culling
+      const hop = np.hopUntil > frame ? Math.round(Math.sin((np.hopUntil - frame) / 16 * Math.PI) * 3) : 0;
+      ctx.drawImage(np.spr[np.dir][0], sx, sy - 2 - hop);
+      if (np.emoji) { // Emoji schwebt über dem Kopf (wippt sanft)
+        const bob = Math.round(Math.sin(frame / 20 + np.x) * 1.5);
+        ctx.font = "10px 'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif";
+        ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+        ctx.fillText(np.emoji, sx + 8, sy - 5 + bob - hop);
+        ctx.textAlign = "left";
+      } else if (!np.read && !D.open && frame % 40 < 28) { // sonst "!" wenn ungelesen
         ctx.fillStyle = C.red;
-        ctx.fillRect(np.x * 16 - camX + 7, np.y * 16 - camY - 8, 2, 4);
-        ctx.fillRect(np.x * 16 - camX + 7, np.y * 16 - camY - 3, 2, 2);
+        ctx.fillRect(sx + 7, sy - 8 - hop, 2, 4); ctx.fillRect(sx + 7, sy - 3 - hop, 2, 2);
       }
     }
     ctx.drawImage(sprites[P.dir][P.moving ? P.step : 0], P.px - camX, P.py - camY - 2);
+
+    // Kompass-Pfeil zur nächsten ungelesenen Figur (nur wenn sie außerhalb des Bildes liegt)
+    if (!D.open && npcs.length > 6 && frame % 40 < 30) {
+      let best = null, bd = 1e9;
+      for (const np of npcs) if (!np.read) { const d = Math.abs(np.x - P.x) + Math.abs(np.y - P.y); if (d < bd) { bd = d; best = np; } }
+      if (best) {
+        const tx = best.x * 16 - camX + 8, ty = best.y * 16 - camY + 8;
+        if (tx < 8 || tx > 152 || ty < 20 || ty > 136) {
+          const ang = Math.atan2(ty - 72, tx - 80);
+          const tX = Math.min(Math.abs(66 / Math.cos(ang)) || 1e9, Math.abs(50 / Math.sin(ang)) || 1e9);
+          const px = 80 + Math.cos(ang) * tX, py = 72 + Math.sin(ang) * tX;
+          ctx.save(); ctx.translate(px, py); ctx.rotate(ang);
+          ctx.fillStyle = C.red;
+          ctx.beginPath(); ctx.moveTo(5, 0); ctx.lineTo(-4, -4); ctx.lineTo(-4, 4); ctx.closePath(); ctx.fill();
+          ctx.restore();
+        }
+      }
+    }
 
     // Gelesen-Zähler (kleines Papier-Schild oben rechts)
     if (npcs.length) {
@@ -683,17 +786,25 @@ function PIXELPOST_RUNTIME(CARD, opts) {
       ctx.fillStyle = PAPER; ctx.fillRect(158 - w, 2, w, 13);
       ctx.fillStyle = INK; ctx.fillRect(158 - w, 2, w, 1); ctx.fillRect(158 - w, 14, w, 1);
       ctx.fillRect(158 - w, 2, 1, 13); ctx.fillRect(157, 2, 1, 13);
-      ctx.font = "8px 'Press Start 2P', monospace"; ctx.textBaseline = "top";
+      ctx.font = "8px 'Press Start 2P', monospace"; ctx.textBaseline = "top"; ctx.textAlign = "left";
       ctx.fillText(label, 161 - w, 5);
     }
 
-    // Dialogbox (weiß, doppelter Rahmen, Schreibmaschine)
+    // Dialogbox (weiß, doppelter Rahmen, Schreibmaschine, optional mit Absender-Porträt)
     if (D.open) {
       ctx.fillStyle = PAPER; ctx.fillRect(2, 102, 156, 40);
       ctx.fillStyle = INK;
       ctx.fillRect(2, 102, 156, 2); ctx.fillRect(2, 140, 156, 2); ctx.fillRect(2, 102, 2, 40); ctx.fillRect(156, 102, 2, 40);
       ctx.fillStyle = PAPER; ctx.fillRect(5, 105, 150, 34);
       ctx.fillStyle = INK; ctx.fillRect(5, 105, 150, 1); ctx.fillRect(5, 138, 150, 1); ctx.fillRect(5, 105, 1, 34); ctx.fillRect(154, 105, 1, 34);
+      let textX = 10;
+      if (D.speaker) { // Porträt der sprechenden Figur links im Kasten
+        ctx.fillStyle = INK; ctx.fillRect(7, 108, 18, 18);
+        ctx.fillStyle = PAPER; ctx.fillRect(8, 109, 16, 16);
+        ctx.drawImage(D.speaker.spr.down[0], 8, 109);
+        ctx.fillStyle = INK; ctx.fillRect(26, 108, 1, 18); // Trennlinie
+        textX = 30;
+      }
       const lines = D.pages[D.page] || [];
       const total = lines.join(" ").length + lines.length;
       if (D.shown < total) {
@@ -701,10 +812,10 @@ function PIXELPOST_RUNTIME(CARD, opts) {
         if (D.shown % 2 === 0) blip(D.shown % 4 === 0 ? 620 : 760, 0.03, 0.02); // Schreibmaschinen-Bleep
       }
       let budget = D.shown;
-      ctx.font = "8px 'Press Start 2P', monospace"; ctx.textBaseline = "top"; ctx.fillStyle = INK;
+      ctx.font = "8px 'Press Start 2P', monospace"; ctx.textBaseline = "top"; ctx.textAlign = "left"; ctx.fillStyle = INK;
       lines.forEach((ln, i) => {
         const part = ln.slice(0, Math.max(0, budget)); budget -= ln.length + 1;
-        ctx.fillText(part, 10, 111 + i * 13);
+        ctx.fillText(part, textX, 111 + i * 13);
       });
       if (D.shown >= total && frame % 30 < 18) { // ▼ blinkt
         ctx.fillStyle = INK;
@@ -712,8 +823,15 @@ function PIXELPOST_RUNTIME(CARD, opts) {
       }
     } else if (npcs.length === 0) {
       ctx.fillStyle = PAPER; ctx.fillRect(2, 110, 156, 26);
-      ctx.font = "8px 'Press Start 2P', monospace"; ctx.textBaseline = "top"; ctx.fillStyle = INK;
+      ctx.font = "8px 'Press Start 2P', monospace"; ctx.textBaseline = "top"; ctx.textAlign = "left"; ctx.fillStyle = INK;
       ctx.fillText(L.empty1, 10, 114); ctx.fillText(L.empty2, 10, 124);
+    }
+
+    // Konfetti (Abschluss-Feier) — über allem
+    for (let i = confetti.length - 1; i >= 0; i--) {
+      const pp = confetti[i]; pp.y += pp.vy; pp.x += pp.vx;
+      if (pp.y > 148) { confetti.splice(i, 1); continue; }
+      ctx.fillStyle = pp.c; ctx.fillRect(Math.round(pp.x), Math.round(pp.y), pp.s, pp.s);
     }
 
     raf = requestAnimationFrame(loop);
@@ -726,14 +844,15 @@ function PIXELPOST_RUNTIME(CARD, opts) {
     window.removeEventListener("keydown", onKeyDown);
     window.removeEventListener("keyup", onKeyUp);
     window.removeEventListener("resize", fit);
+    document.removeEventListener("visibilitychange", onVisibility);
     overlay.remove(); style.remove();
+    stopMusic();
     if (SND.ctx) { try { SND.ctx.close(); } catch (e) {} SND.ctx = null; }
     if (O.onClose) O.onClose();
   }
   if (xBtn) xBtn.onclick = close;
 
   /* ---------- Start ---------- */
-  const introText = (CARD.title || "").trim() || L.intro[CARD.occasion] || L.intro.einfach;
   const boot = () => {
     if (closed) return;
     openDialog(introText + L.suffix);
@@ -752,7 +871,7 @@ function PIXELPOST_RUNTIME(CARD, opts) {
         }
         return npcs.every((nn) => steps.some(([dx, dy]) => seen.has((nn.x + dx) + "," + (nn.y + dy))));
       };
-      window.__ppCard = { P, npcs, D, aPress, close, allReachable, sprites, state: () => ({ x: P.x, y: P.y, dir: P.dir, dialog: D.open, npcs: npcs.length, cols: COLS, rows: ROWS, read: npcs.filter((n) => n.read).length }) };
+      window.__ppCard = { P, npcs, D, aPress, close, allReachable, sprites, confetti, heroIdx, state: () => ({ x: P.x, y: P.y, dir: P.dir, dialog: D.open, npcs: npcs.length, cols: COLS, rows: ROWS, read: npcs.filter((n) => n.read).length, speaker: !!D.speaker, confetti: confetti.length, listOpen: !listPanel.hidden }) };
     }
     raf = requestAnimationFrame(loop);
   };
