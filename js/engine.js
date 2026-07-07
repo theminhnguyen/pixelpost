@@ -24,7 +24,7 @@ function PIXELPOST_RUNTIME(CARD, opts) {
   const C = {
     red: "#c04040", green: "#3f8850", leaf: "#2f6636", yellow: "#e8c850",
     brown: "#8a5a2c", tan: "#c89858", pink: "#e87898", white: "#f8f8f8",
-    sky: "#98d0e8", eye: "#202020",
+    sky: "#98d0e8",
   };
 
   /* ---------- Sprache (DE/EN) — alle In-Game-Texte ---------- */
@@ -61,10 +61,10 @@ function PIXELPOST_RUNTIME(CARD, opts) {
   };
   const occ = OCC[CARD.occasion] || OCC.einfach;
 
-  /* ---------- Pixel-Sprites ----------
-     '.'=durchsichtig · 0=Haut · e=Augen · 2=Tunika · 3=Haare (Kopfbereich,
-     Reihen 1–7) bzw. Umriss/Stiefel (ab Reihe 8) · h=Haar-Extrapixel (lange
-     Frisur) · c=Kappe */
+  /* ---------- Pixel-Sprites (Grund-Silhouette) ----------
+     '.'=durchsichtig · 0=Haut · e=Augen · 2=Tunika · 3=Haare (Kopf, Reihen 1–7)
+     bzw. Umriss/Beine (ab Reihe 8). enrich() fügt daraus Schatten, Gesichtszüge,
+     Kragen, Hose + Schuhe usw. hinzu. */
   const SPR = {
     down0: ["................", ".....333333.....", "....33333333....", "...3333333333...", "...3300000033...", "...300e00e003...", "...3000000003...", "....30000003....", "...3222222223...", "..322222222223..", "..302222222203..", "...3222222223...", "....32222223....", "....33....33....", "....33....33....", "................"],
     down1: ["................", ".....333333.....", "....33333333....", "...3333333333...", "...3300000033...", "...300e00e003...", "...3000000003...", "....30000003....", "...3222222223...", "..322222222223..", "..302222222203..", "...3222222223...", "....32222223....", "....33..33......", "........33......", "................"],
@@ -74,12 +74,20 @@ function PIXELPOST_RUNTIME(CARD, opts) {
     side1: ["................", ".....333333.....", "....33333333....", "...3333333333...", "...3333000033...", "...33300e0033...", "...3330000033...", "....33000033....", "...3222222233...", "...32222222230..", "...3222222223...", "...3222222223...", "....32222223....", ".....33.33......", "....33...33.....", "................"],
   };
 
-  /* ---------- Individuelle Figuren ----------
-     Aussehen wird stabil aus Name + Position abgeleitet: gleiche Person
-     sieht immer gleich aus, aber alle unterscheiden sich deutlich. */
+  /* ---------- Individuelle, detailreiche Figuren ----------
+     Aussehen wird stabil aus Name abgeleitet (gleiche Person = gleiches
+     Männchen). Aus der Grundfarbe werden Licht-/Schatten-Töne berechnet, dazu
+     kommen Gesichtszüge (Brauen, Mund, Wangen), Kragen, Gürtelzone, zweifarbige
+     Beine (Hose + Schuhe) und Haar-Glanz. */
   const HAIRS  = ["#402818", "#e8c860", "#b04820", "#181818", "#c8c8c8"]; // braun, blond, rot, schwarz, grau
   const TUNICS = ["#c04040", "#3f8850", "#4060b8", "#8848a0", "#d07828", "#2f8f8f"];
   const SKINS  = ["#f8d8b8", "#e0a878", "#a86838"];
+  const OUTLINE = "#241c22", BOOTS = "#2a2320";
+  function shade(hex, f) { // f>0 heller, f<0 dunkler
+    const n = parseInt(hex.slice(1), 16);
+    const cl = (c) => Math.max(0, Math.min(255, Math.round(c + 255 * f)));
+    return "#" + (0x1000000 + (cl((n >> 16) & 255) << 16) + (cl((n >> 8) & 255) << 8) + cl(n & 255)).toString(16).slice(1);
+  }
   function lookOf(name, i) {
     let h = 0;
     const s = String(name || "");
@@ -89,102 +97,92 @@ function PIXELPOST_RUNTIME(CARD, opts) {
       tunic: TUNICS[base % 6],
       hair: HAIRS[Math.floor(base / 6) % 5],
       skin: SKINS[Math.floor(base / 30) % 3],
-      style: Math.floor(base / 90) % 3, // 0 normal · 1 lange Haare · 2 Kappe
+      style: Math.floor(base / 90) % 2, // 0 kurz · 1 lange Haare
     };
   }
-  const setPx = (rows, y, x, ch) => {
-    if (rows[y][x] === ".") rows[y] = rows[y].slice(0, x) + ch + rows[y].slice(x + 1);
-  };
-  function applyStyle(base, style) {
-    const rows = base.slice();
-    if (style === 1) { // lange Haare: Strähnen über den Schultern/Rücken
-      setPx(rows, 8, 2, "h"); setPx(rows, 8, 13, "h");
-      setPx(rows, 9, 2, "h"); setPx(rows, 9, 13, "h");
-    }
-    if (style === 2) { // Kappe: oben Kappenfarbe, Reihe 3 bleibt dunkler Schirm
-      for (let y = 1; y <= 2; y++) rows[y] = rows[y].replace(/3/g, "c");
-    }
-    return rows;
+  function figColors(look) {
+    return {
+      hair: look.hair, hairHi: shade(look.hair, 0.20), skin: look.skin, skinSh: shade(look.skin, -0.13),
+      tunic: look.tunic, tunicHi: shade(look.tunic, 0.15), tunicSh: shade(look.tunic, -0.18),
+      pants: shade(look.tunic, -0.34), boots: BOOTS, outline: OUTLINE,
+      eye: "#241a20", brow: shade(look.hair, -0.1), mouth: shade(look.skin, -0.42),
+    };
   }
-  function renderFigure(base, look, flip) {
+  const put = (row, i, ch) => row.slice(0, i) + ch + row.slice(i + 1);
+  const rep = (row, i, from, to) => (row[i] === from ? put(row, i, to) : row); // nur ersetzen, wenn passend
+  function edgesTo(row, from, to) { // erstes + letztes Vorkommen ersetzen (Seitenschatten)
+    const a = row.indexOf(from); if (a < 0) return row;
+    const b = row.lastIndexOf(from);
+    return b === a ? put(row, a, to) : put(put(row, a, to), b, to);
+  }
+  function enrich(base, face, longHair) {
+    const r = base.slice();
+    r[13] = r[13].replace(/3/g, "p");                       // Hose
+    r[14] = r[14].replace(/3/g, "b");                       // Schuhe
+    r[12] = r[12].replace(/2/g, "D");                       // Taille/Gürtelzone dunkler
+    r[8] = rep(rep(r[8], 7, "2", "L"), 8, "2", "L");        // Kragen
+    r[9] = rep(r[9], 7, "2", "L");                          // Brust-Highlight
+    r[10] = edgesTo(r[10], "2", "D"); r[11] = edgesTo(r[11], "2", "D"); // Tunika-Seitenschatten
+    r[2] = rep(rep(r[2], 6, "3", "H"), 7, "3", "H");        // Haar-Glanz
+    r[3] = rep(r[3], 5, "3", "H");
+    if (longHair) { r[8] = put(put(r[8], 2, "h"), 13, "h"); r[9] = put(put(r[9], 2, "h"), 13, "h"); }
+    if (face === "front") {
+      r[4] = rep(rep(r[4], 6, "0", "B"), 9, "0", "B");      // Augenbrauen
+      r[6] = rep(r[6], 7, "0", "m");                        // Mund
+      r[7] = rep(rep(r[7], 5, "0", "k"), 10, "0", "k");     // Wangen/Kinnschatten
+    } else if (face === "side") {
+      r[4] = rep(r[4], 8, "0", "B");
+      r[6] = rep(r[6], 8, "0", "m");
+      r[7] = rep(r[7], 9, "0", "k");
+    }
+    return r;
+  }
+  function colorFor(ch, ry, c) {
+    switch (ch) {
+      case "0": return c.skin; case "k": return c.skinSh;
+      case "e": return c.eye; case "B": return c.brow; case "m": return c.mouth;
+      case "2": return c.tunic; case "L": return c.tunicHi; case "D": return c.tunicSh;
+      case "p": return c.pants; case "b": return c.boots;
+      case "H": return c.hairHi; case "h": return c.hair;
+      case "3": return ry <= 7 ? c.hair : c.outline;
+      default: return c.outline;
+    }
+  }
+  function renderFigure(base, look, opts) {
+    opts = opts || {};
+    const c = figColors(look);
     const cnv = document.createElement("canvas"); cnv.width = 16; cnv.height = 16;
     const x = cnv.getContext("2d");
-    applyStyle(base, look.style).forEach((row, ry) => {
+    enrich(base, opts.face, look.style === 1).forEach((row, ry) => {
       for (let rx = 0; rx < 16; rx++) {
         const ch = row[rx];
         if (ch === "." || ch == null) continue;
-        x.fillStyle =
-          ch === "0" ? look.skin :
-          ch === "e" ? C.eye :
-          ch === "2" ? look.tunic :
-          ch === "h" ? look.hair :
-          ch === "c" ? look.tunic :
-          ry <= 7 ? look.hair : PAL[3]; // '3' im Kopf = Haar, sonst Umriss/Stiefel
-        x.fillRect(flip ? 15 - rx : rx, ry, 1, 1);
+        x.fillStyle = colorFor(ch, ry, c);
+        x.fillRect(opts.flip ? 15 - rx : rx, ry, 1, 1);
       }
     });
     return cnv;
   }
   function figureSet(look) {
     return {
-      down: [renderFigure(SPR.down0, look), renderFigure(SPR.down1, look)],
-      up: [renderFigure(SPR.up0, look), renderFigure(SPR.up1, look)],
-      right: [renderFigure(SPR.side0, look), renderFigure(SPR.side1, look)],
-      left: [renderFigure(SPR.side0, look, true), renderFigure(SPR.side1, look, true)],
+      down: [renderFigure(SPR.down0, look, { face: "front" }), renderFigure(SPR.down1, look, { face: "front" })],
+      up: [renderFigure(SPR.up0, look, { face: "back" }), renderFigure(SPR.up1, look, { face: "back" })],
+      right: [renderFigure(SPR.side0, look, { face: "side" }), renderFigure(SPR.side1, look, { face: "side" })],
+      left: [renderFigure(SPR.side0, look, { face: "side", flip: true }), renderFigure(SPR.side1, look, { face: "side", flip: true })],
     };
   }
 
-  /* ---------- Spieler-Figur (Held, extra Details) ----------
-     Eigene, detailreichere Figur als die NPCs: Nase, Kragen + Knopfleiste,
-     Gürtel, zweifarbige Beine (Hose + Schuhe) und ein Haar-Glanz. So hebt sich
-     die gesteuerte Figur klar von der Menge ab. Aussehen wählbar (CARD.hero). */
+  /* ---------- Spieler-Figur (wählbares Preset, gleicher Detail-Renderer) ---------- */
   const HERO_PRESETS = [
-    { skin: "#f8d8b8", hair: "#7a4a24", hairHi: "#9c6636", tunic: "#3f8850", tunicHi: "#63b079", pants: "#38508f" }, // Grün/Braun
-    { skin: "#f8d8b8", hair: "#e8c860", hairHi: "#f4e090", tunic: "#c04040", tunicHi: "#e07070", pants: "#3a2a5a" }, // Rot/Blond
-    { skin: "#e0a878", hair: "#181818", hairHi: "#444444", tunic: "#4060b8", tunicHi: "#6888d8", pants: "#2a2a3a" }, // Blau/Schwarz
-    { skin: "#f8d8b8", hair: "#b04820", hairHi: "#d06840", tunic: "#8848a0", tunicHi: "#a868c0", pants: "#402038" }, // Lila/Rot
-    { skin: "#a86838", hair: "#2a1a10", hairHi: "#5a3a20", tunic: "#d07828", tunicHi: "#f0a050", pants: "#2a3a4a" }, // Orange/Dunkel
-    { skin: "#f8d8b8", hair: "#c8c8c8", hairHi: "#f0f0f0", tunic: "#2f8f8f", tunicHi: "#4fb0b0", pants: "#333333" }, // Türkis/Grau
+    { skin: "#f8d8b8", hair: "#7a4a24", tunic: "#3f8850", style: 0 }, // Grün/Braun
+    { skin: "#f8d8b8", hair: "#e8c860", tunic: "#c04040", style: 0 }, // Rot/Blond
+    { skin: "#e0a878", hair: "#181818", tunic: "#4060b8", style: 0 }, // Blau/Schwarz
+    { skin: "#f8d8b8", hair: "#b04820", tunic: "#8848a0", style: 1 }, // Lila/Rot (lange Haare)
+    { skin: "#a86838", hair: "#2a1a10", tunic: "#d07828", style: 0 }, // Orange/Dunkel
+    { skin: "#f8d8b8", hair: "#c8c8c8", tunic: "#2f8f8f", style: 1 }, // Türkis/Grau (lange Haare)
   ];
   const heroIdx = Math.min(HERO_PRESETS.length - 1, Math.max(0, (CARD.hero | 0)));
-  const HERO = Object.assign({ eye: C.eye, nose: "#e6b48c", belt: "#3a2412", shoes: "#241a10" }, HERO_PRESETS[heroIdx]);
-  const setAt = (row, i, ch) => (row[i] === "." ? row : row.slice(0, i) + ch + row.slice(i + 1));
-  function heroGrid(base, withNose) {
-    const r = base.slice();
-    r[13] = r[13].replace(/3/g, "p");                 // Hose
-    r[14] = r[14].replace(/3/g, "k");                 // Schuhe
-    r[12] = r[12].replace(/2/g, "b");                 // Gürtel quer über die Taille
-    r[8] = setAt(setAt(r[8], 7, "T"), 8, "T");        // Kragen
-    r[10] = setAt(r[10], 7, "T"); r[11] = setAt(r[11], 7, "T"); // Knopfleiste
-    r[2] = setAt(r[2], 6, "H"); r[3] = setAt(r[3], 5, "H");     // Haar-Glanz
-    if (withNose) r[6] = setAt(r[6], 8, "n");
-    return r;
-  }
-  function renderHero(base, withNose, flip) {
-    const cnv = document.createElement("canvas"); cnv.width = 16; cnv.height = 16;
-    const x = cnv.getContext("2d");
-    heroGrid(base, withNose).forEach((row, ry) => {
-      for (let rx = 0; rx < 16; rx++) {
-        const ch = row[rx];
-        if (ch === "." || ch == null) continue;
-        x.fillStyle =
-          ch === "0" ? HERO.skin : ch === "e" ? HERO.eye : ch === "n" ? HERO.nose :
-          ch === "2" ? HERO.tunic : ch === "T" ? HERO.tunicHi : ch === "b" ? HERO.belt :
-          ch === "p" ? HERO.pants : ch === "k" ? HERO.shoes : ch === "H" ? HERO.hairHi :
-          ry <= 7 ? HERO.hair : PAL[3];               // '3': Kopf = Haar, sonst Umriss
-        x.fillRect(flip ? 15 - rx : rx, ry, 1, 1);
-      }
-    });
-    return cnv;
-  }
-  function heroSet() {
-    return {
-      down: [renderHero(SPR.down0, true), renderHero(SPR.down1, true)],
-      up: [renderHero(SPR.up0, false), renderHero(SPR.up1, false)],
-      right: [renderHero(SPR.side0, true), renderHero(SPR.side1, true)],
-      left: [renderHero(SPR.side0, true, true), renderHero(SPR.side1, true, true)],
-    };
-  }
+  const heroLook = HERO_PRESETS[heroIdx];
 
   /* ---------- Kacheln (16×16, prozedural) ---------- */
   function makeTile(draw) {
@@ -554,8 +552,8 @@ function PIXELPOST_RUNTIME(CARD, opts) {
   }));
   npcs.forEach((nn) => solid.add(nn.x + "," + nn.y));
 
-  /* ---------- Spieler (detaillierte Helden-Figur) ---------- */
-  const sprites = heroSet();
+  /* ---------- Spieler (detaillierte Figur, wählbares Preset) ---------- */
+  const sprites = figureSet(heroLook);
   const P = { x: midX, y: ROWS - 2, px: 0, py: 0, dir: "up", step: 0, moving: false, mx: 0, my: 0, prog: 0 };
   P.px = P.x * 16; P.py = P.y * 16;
 
@@ -602,7 +600,7 @@ function PIXELPOST_RUNTIME(CARD, opts) {
   let celebrated = false;
 
   /* ---------- Konfetti (Abschluss-Feier) ---------- */
-  const CONFETTI_COLORS = [C.red, C.yellow, C.green, C.pink, C.sky, HERO.tunic];
+  const CONFETTI_COLORS = [C.red, C.yellow, C.green, C.pink, C.sky, heroLook.tunic];
   const confetti = [];
   function spawnConfetti() {
     for (let i = 0; i < 60; i++) confetti.push({

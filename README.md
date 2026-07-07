@@ -58,8 +58,12 @@ zwischengespeichert:
   auf dem Boden.
 - Jede Figur sieht anders aus: Frisur, Haarfarbe, Hautton und Kleidungsfarbe
   werden stabil aus dem Namen abgeleitet (gleiche Person = gleiches Männchen).
-  Die gesteuerte Spielfigur ist extra detailliert (Nase, Kragen, Gürtel, Hose,
-  Schuhe) und in 6 Varianten wählbar.
+  Alle Figuren sind detailreich schattiert (Haar-Glanz, Tunika-Licht/-Schatten,
+  Hautschatten, Augenbrauen, Mund, Kragen, zweifarbige Beine) — die Töne werden
+  aus der Grundfarbe berechnet. Die gesteuerte Spielfigur nutzt denselben
+  Renderer und ist in 6 Varianten wählbar.
+- Funktioniert am **Handy** (Touch-D-Pad + A-Knopf) wie am Desktop
+  (Pfeiltasten/WASD); die Ersteller- und Sammel-Seiten sind responsiv.
 - Optionales **Emoji pro Gruß**, das über der Figur schwebt; beim Ansprechen
   zeigt die Dialogbox ein **Porträt** des Absenders und die Figur hüpft kurz.
 - Grüße öffnen sich automatisch, sobald man neben einer Figur stehen bleibt;
