@@ -120,20 +120,24 @@ input[type="text"]:focus, textarea:focus {
 }
 textarea { resize: vertical; min-height: 54px; }
 
-/* ---------- Figuren-Wähler ---------- */
-.chips--hero { gap: 10px; }
+/* ---------- Figuren-Wähler (echte Sprite-Vorschau) ---------- */
+.heroes { display: flex; flex-wrap: wrap; gap: 10px; }
 .hero-opt {
-  width: 40px; height: 40px;
-  border-radius: 10px;
+  width: 52px; height: 52px;
+  border-radius: 12px;
   border: 2px solid var(--line);
-  background:
-    radial-gradient(circle at 50% 30%, #f8d8b8 0 22%, transparent 23%),
-    linear-gradient(var(--hc), var(--hc));
-  background-size: 100% 100%;
+  background: var(--panel-2);
   cursor: pointer;
+  padding: 0;
+  display: grid;
+  place-items: center;
   transition: transform .1s, border-color .15s;
 }
-.hero-opt:hover { transform: translateY(-2px); }
+.hero-opt img {
+  width: 40px; height: 40px;
+  image-rendering: pixelated;
+}
+.hero-opt:hover { transform: translateY(-2px); border-color: var(--accent-hi); }
 .hero-opt.is-active { border-color: var(--accent-hi); box-shadow: 0 0 0 2px var(--accent); }
 
 /* ---------- Grüße-Liste ---------- */

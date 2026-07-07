@@ -581,19 +581,21 @@
     renderGreetings(); invalidateShare();
   });
 
-  /* ----- Figuren-Wähler (Vorschau-Sprites der 6 Presets) ----- */
-  const HERO_PREVIEW = ["#3f8850", "#c04040", "#4060b8", "#8848a0", "#d07828", "#2f8f8f"];
+  /* ----- Figuren-Wähler (echte Sprite-Vorschau der Presets) ----- */
   const heroPick = $("heroPick");
   function updateHeroPicker() {
     for (const b of heroPick.querySelectorAll("button")) b.classList.toggle("is-active", (b.dataset.value | 0) === (state.hero | 0));
   }
-  HERO_PREVIEW.forEach((col, i) => {
+  let heroPreviews = [];
+  try { if (typeof PIXELPOST_RUNTIME === "function") heroPreviews = PIXELPOST_RUNTIME({}, { spritePreview: true }) || []; } catch (e) {}
+  const heroCount = heroPreviews.length || 6;
+  for (let i = 0; i < heroCount; i++) {
     const b = document.createElement("button");
     b.type = "button"; b.className = "hero-opt"; b.dataset.value = String(i);
-    b.style.setProperty("--hc", col);
     b.setAttribute("aria-label", "Figur " + (i + 1));
+    if (heroPreviews[i]) { const img = document.createElement("img"); img.src = heroPreviews[i]; img.alt = ""; b.appendChild(img); }
     heroPick.appendChild(b);
-  });
+  }
   heroPick.addEventListener("click", (e) => {
     const b = e.target.closest("button[data-value]");
     if (!b) return;

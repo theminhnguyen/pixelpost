@@ -60,8 +60,10 @@ zwischengespeichert:
   werden stabil aus dem Namen abgeleitet (gleiche Person = gleiches Männchen).
   Alle Figuren sind detailreich schattiert (Haar-Glanz, Tunika-Licht/-Schatten,
   Hautschatten, Augenbrauen, Mund, Kragen, zweifarbige Beine) — die Töne werden
-  aus der Grundfarbe berechnet. Die gesteuerte Spielfigur nutzt denselben
-  Renderer und ist in 6 Varianten wählbar.
+  aus der Grundfarbe berechnet. Manche Figuren tragen **Brille** oder **Mütze**
+  (auch bei NPCs zufällig, für mehr Vielfalt im Raum). Die gesteuerte Spielfigur
+  nutzt denselben Renderer und ist in 6 sichtbaren Varianten wählbar (der Wähler
+  zeigt die echten Sprite-Vorschauen, nicht nur Farben).
 - Funktioniert am **Handy** (Touch-D-Pad + A-Knopf) wie am Desktop
   (Pfeiltasten/WASD); die Ersteller- und Sammel-Seiten sind responsiv.
 - Optionales **Emoji pro Gruß**, das über der Figur schwebt; beim Ansprechen
