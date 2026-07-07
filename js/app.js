@@ -51,6 +51,35 @@
       qrNote: "Oder scannen lassen:",
       qrAlt: "QR-Code zum Karten-Link",
       qrTooLong: "Diese Karte ist zu lang für einen QR-Code — nimm den Link oder die Datei.",
+      stepCollab: "Lieber gemeinsam sammeln?",
+      collabIntro: "Statt alles selbst einzutragen: Starte einen Sammel-Link und schick ihn rum — jede/r trägt den eigenen Gruß ein. Am Ende baust du daraus die fertige Karte. (Die Grüße werden dafür kurz auf einem kostenlosen Server zwischengespeichert.)",
+      btnCollab: "🔗 Sammel-Link starten",
+      collabWorking: "Wird angelegt …",
+      collabErr: "Konnte den Sammel-Link nicht anlegen. Bitte später noch einmal versuchen.",
+      collabInviteLabel: "1) Einlade-Link — an alle schicken, die einen Gruß beisteuern sollen:",
+      collabManageLabel: "2) Dein privater Verwalten-Link — gut aufheben!",
+      collabManageNote: "Nur mit diesem Link kommst du an die gesammelten Grüße und baust die Karte. Nicht weiterschicken! (Ist auch in diesem Browser gespeichert.)",
+      collabOpenManage: "Grüße ansehen / Karte bauen →",
+      savedCollabs: "Deine Sammel-Links (in diesem Browser gespeichert):",
+      cHeading: "Trag deinen Gruß ein ✍️",
+      cSubtitle: "Dein Gruß wird Teil einer Überraschungs-Grußkarte im Retro-Stil — als kleines Männchen in einem Pixel-Raum.",
+      cSubmit: "Gruß abschicken",
+      cThanks: "Danke! Dein Gruß ist dabei 🎉",
+      cAnother: "Noch einen Gruß hinzufügen",
+      cCountSuffix: "Grüße bisher gesammelt",
+      cClosed: "Diese Sammlung nimmt gerade keine Grüße mehr an. 🙈",
+      cNotFound: "Diese Sammlung gibt es nicht (mehr).",
+      cFull: "Diese Sammlung ist voll — melde dich beim Absender.",
+      cErr: "Hat nicht geklappt — bitte noch einmal versuchen.",
+      mHeading: "Gesammelte Grüße",
+      mCountSuffix: "Grüße gesammelt",
+      mRefresh: "🔄 Aktualisieren",
+      mBuild: "✨ Fertige Karte bauen",
+      mToggleClose: "Sammlung schließen (keine neuen Grüße)",
+      mToggleOpen: "Sammlung wieder öffnen",
+      mEmpty: "Noch keine Grüße — teile den Einlade-Link! 📨",
+      mForbidden: "Kein Zugriff — der Verwalten-Link ist unvollständig oder falsch.",
+      mInvite: "Einlade-Link (zum Weiterteilen):",
     },
     en: {
       docTitle: "PixelPost — greeting card as a retro mini-game",
@@ -88,6 +117,35 @@
       qrNote: "Or let them scan:",
       qrAlt: "QR code for the card link",
       qrTooLong: "This card is too long for a QR code — use the link or file instead.",
+      stepCollab: "Prefer to collect together?",
+      collabIntro: "Instead of entering everything yourself: start a collection link and pass it around — everyone adds their own greeting. At the end you build the finished card from them. (Greetings are briefly stored on a free server for this.)",
+      btnCollab: "🔗 Start a collection link",
+      collabWorking: "Creating …",
+      collabErr: "Couldn't create the collection link. Please try again later.",
+      collabInviteLabel: "1) Invite link — send to everyone who should add a greeting:",
+      collabManageLabel: "2) Your private manage link — keep it safe!",
+      collabManageNote: "Only this link lets you see the collected greetings and build the card. Don't share it! (It's also saved in this browser.)",
+      collabOpenManage: "View greetings / build card →",
+      savedCollabs: "Your collection links (saved in this browser):",
+      cHeading: "Add your greeting ✍️",
+      cSubtitle: "Your greeting becomes part of a surprise retro greeting card — as a little character in a pixel room.",
+      cSubmit: "Send greeting",
+      cThanks: "Thank you! Your greeting is in 🎉",
+      cAnother: "Add another greeting",
+      cCountSuffix: "greetings collected so far",
+      cClosed: "This collection isn't accepting greetings right now. 🙈",
+      cNotFound: "This collection doesn't exist (anymore).",
+      cFull: "This collection is full — contact the sender.",
+      cErr: "That didn't work — please try again.",
+      mHeading: "Collected greetings",
+      mCountSuffix: "greetings collected",
+      mRefresh: "🔄 Refresh",
+      mBuild: "✨ Build the finished card",
+      mToggleClose: "Close collection (no new greetings)",
+      mToggleOpen: "Reopen collection",
+      mEmpty: "No greetings yet — share the invite link! 📨",
+      mForbidden: "No access — the manage link is incomplete or wrong.",
+      mInvite: "Invite link (to share):",
     },
   };
   const detectLang = () => {
@@ -171,6 +229,161 @@
 
   /* ---------------- Viewer-Modus (Link geöffnet) ---------------- */
   const APP_URL = location.origin + location.pathname;
+
+  /* ================= Sammel-Link (optionales Backend) =================
+     Mehrere Leute tragen über EINEN Link Grüße ein; nur der Ersteller sieht
+     mit seinem Geheim-Token alles und baut daraus die fertige (weiterhin
+     serverlose) Karte. Zugriff nur über geprüfte RPC-Funktionen. */
+  const SB_URL = "https://moezhswmybxxeplncgyy.supabase.co";
+  const SB_KEY = "sb_publishable_XNkGqoR-HyQmi5mjAXXt_A_u6gL1P-f";
+  async function rpc(fn, params) {
+    const res = await fetch(SB_URL + "/rest/v1/rpc/" + fn, {
+      method: "POST",
+      headers: { apikey: SB_KEY, Authorization: "Bearer " + SB_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify(params || {}),
+    });
+    if (!res.ok) {
+      let msg = "http_" + res.status;
+      try { msg = (await res.json()).message || msg; } catch (e) {}
+      throw new Error(msg);
+    }
+    return res.json();
+  }
+  const L2 = (lang, key) => (I18N[lang === "en" ? "en" : "de"] || I18N.de)[key];
+  function makeQR(url) {
+    try { if (typeof qrcode === "undefined" || url.length > 1200) return null; const q = qrcode(0, "M"); q.addData(url); q.make(); return q.createDataURL(4, 8); } catch (e) { return null; }
+  }
+
+  // localStorage-Merkliste der eigenen Sammlungen
+  function savedCollabs() { try { return JSON.parse(localStorage.getItem("pixelpost_collabs") || "[]"); } catch (e) { return []; } }
+  function rememberCollab(c) { try { const a = savedCollabs().filter((x) => x.id !== c.id); a.unshift(c); localStorage.setItem("pixelpost_collabs", JSON.stringify(a.slice(0, 12))); } catch (e) {} }
+
+  function collabRoot() {
+    document.documentElement.classList.add("is-viewer");
+    const w = document.createElement("div"); w.className = "collab"; document.body.appendChild(w); return w;
+  }
+  const shell = (inner) => "<div class='collab__card'><a class='collab__logo' href='" + APP_URL + "'>PIXEL<span>POST</span></a>" + inner + "</div>";
+  function collabError(w, lang, key) { w.innerHTML = shell("<p class='collab__msg'>" + escHtml(L2(lang, key)) + "</p><a class='collab__home' href='" + APP_URL + "'>PixelPost →</a>"); }
+
+  /* ----- Beitragende: Gruß eintragen (#collect=<id>) ----- */
+  async function initContributor(id) {
+    const w = collabRoot();
+    w.innerHTML = shell("<p class='collab__msg'>…</p>");
+    let info;
+    try { info = (await rpc("collection_info", { p_id: id }))[0]; } catch (e) { info = null; }
+    if (!info) return collabError(w, "de", "cNotFound");
+    const lang = info.lang === "en" ? "en" : "de", tr = (k) => L2(lang, k);
+    document.documentElement.lang = lang;
+    if (!info.open) return collabError(w, lang, "cClosed");
+    let count = info.count | 0;
+
+    const render = () => {
+      w.innerHTML = shell(
+        "<h1>" + escHtml(info.title || tr("cHeading")) + "</h1>" +
+        "<p class='collab__sub'>" + escHtml(tr("cSubtitle")) + "</p>" +
+        "<div class='collab__form'>" +
+        "<div class='collab__row'><input id='cEmoji' maxlength='4' placeholder='🙂' title='Emoji'>" +
+        "<input id='cName' type='text' maxlength='24' placeholder='" + escHtml(L2(lang, "namePh")) + "'></div>" +
+        "<textarea id='cText' rows='3' maxlength='500' placeholder='" + escHtml(L2(lang, "textPh")) + "'></textarea>" +
+        "<button id='cSend' class='btn btn--primary'>" + escHtml(tr("cSubmit")) + "</button>" +
+        "<p id='cMsg' class='collab__note'></p></div>" +
+        "<p class='collab__count'>" + count + " " + escHtml(tr("cCountSuffix")) + "</p>");
+      const send = document.getElementById("cSend"), msg = document.getElementById("cMsg");
+      send.addEventListener("click", async () => {
+        const name = document.getElementById("cName").value.trim();
+        const text = document.getElementById("cText").value.trim();
+        const emoji = document.getElementById("cEmoji").value.trim();
+        if (!name && !text) { msg.textContent = L2(lang, "needGreet"); return; }
+        send.disabled = true; msg.textContent = "…";
+        try {
+          await rpc("add_greeting", { p_collection: id, p_name: name, p_text: text, p_emoji: emoji });
+          count++;
+          w.innerHTML = shell(
+            "<h1>" + escHtml(tr("cThanks")) + "</h1>" +
+            "<p class='collab__count'>" + count + " " + escHtml(tr("cCountSuffix")) + "</p>" +
+            "<button id='cMore' class='btn'>" + escHtml(tr("cAnother")) + "</button>");
+          document.getElementById("cMore").addEventListener("click", render);
+        } catch (e) {
+          send.disabled = false;
+          msg.textContent = /closed/.test(e.message) ? tr("cClosed") : /full/.test(e.message) ? tr("cFull") : L2(lang, "cErr") || "…";
+        }
+      });
+    };
+    render();
+  }
+
+  /* ----- Ersteller: Grüße ansehen + Karte bauen (#manage=<id>~<token>) ----- */
+  async function initManage(id, token) {
+    const w = collabRoot();
+    w.innerHTML = shell("<p class='collab__msg'>…</p>");
+    let info, rows;
+    try {
+      info = (await rpc("collection_info", { p_id: id }))[0];
+      rows = await rpc("list_greetings", { p_collection: id, p_token: token });
+    } catch (e) { return collabError(w, "de", /forbidden/.test(e.message) ? "mForbidden" : "cNotFound"); }
+    if (!info) return collabError(w, "de", "cNotFound");
+    const lang = info.lang === "en" ? "en" : "de", tr = (k) => L2(lang, k);
+    document.documentElement.lang = lang;
+    rememberCollab({ id: id, token: token, title: info.title, lang: lang });
+    const inviteUrl = APP_URL + "#collect=" + id;
+
+    async function refresh() {
+      try { rows = await rpc("list_greetings", { p_collection: id, p_token: token }); info = (await rpc("collection_info", { p_id: id }))[0]; } catch (e) {}
+      render();
+    }
+    function render() {
+      const listHtml = rows.length
+        ? "<ul class='collab__list'>" + rows.map((g) => "<li><b>" + escHtml((g.emoji ? g.emoji + " " : "") + (g.name || "—")) + "</b>" + escHtml(g.text || "") + "</li>").join("") + "</ul>"
+        : "<p class='collab__msg'>" + escHtml(tr("mEmpty")) + "</p>";
+      w.innerHTML = shell(
+        "<h1>" + escHtml(tr("mHeading")) + "</h1>" +
+        "<p class='collab__count'>" + rows.length + " " + escHtml(tr("mCountSuffix")) + (info.open ? "" : " · 🔒") + "</p>" +
+        "<div class='collab__row2'><button id='mRefresh' class='btn btn--small'>" + escHtml(tr("mRefresh")) + "</button>" +
+        "<button id='mToggle' class='btn btn--small'>" + escHtml(info.open ? tr("mToggleClose") : tr("mToggleOpen")) + "</button></div>" +
+        listHtml +
+        "<div class='collab__invite'><label>" + escHtml(tr("mInvite")) + "</label><div class='share__row'><input id='mInvite' readonly value='" + escHtml(inviteUrl) + "'><button id='mInviteCopy' class='btn btn--small'>" + escHtml(L2(lang, "btnCopy")) + "</button></div></div>" +
+        "<button id='mBuild' class='btn btn--primary collab__build'" + (rows.length ? "" : " disabled") + ">" + escHtml(tr("mBuild")) + "</button>" +
+        "<div id='mShare'></div>");
+      document.getElementById("mRefresh").addEventListener("click", refresh);
+      document.getElementById("mInviteCopy").addEventListener("click", () => copyField("mInvite", "mInviteCopy", L2(lang, "btnCopied"), L2(lang, "btnCopy")));
+      document.getElementById("mToggle").addEventListener("click", async () => {
+        try { await rpc("set_collection_open", { p_collection: id, p_token: token, p_open: !info.open }); info.open = !info.open; render(); } catch (e) {}
+      });
+      document.getElementById("mBuild").addEventListener("click", buildCard);
+    }
+    async function buildCard() {
+      const card = { title: info.title, occasion: info.occasion, lang: lang, hero: info.hero | 0,
+        greetings: rows.map((g) => ({ name: g.name, text: g.text, emoji: g.emoji })) };
+      const url = APP_URL + "#" + await encodePayload(card);
+      const qr = makeQR(url);
+      const box = document.getElementById("mShare");
+      box.innerHTML =
+        "<div class='share'><div class='share__row'><input id='mCardUrl' readonly value='" + escHtml(url) + "'>" +
+        "<button id='mCardCopy' class='btn btn--primary'>" + escHtml(L2(lang, "btnCopy")) + "</button></div>" +
+        "<div class='collab__row2'><button id='mPreview' class='btn'>" + escHtml(L2(lang, "btnPreview")) + "</button>" +
+        "<button id='mDownload' class='btn'>" + escHtml(L2(lang, "btnDownload")) + "</button></div>" +
+        (qr ? "<div class='qr'><img src='" + qr + "' alt='QR'></div>" : "") + "</div>";
+      document.getElementById("mCardCopy").addEventListener("click", () => copyField("mCardUrl", "mCardCopy", L2(lang, "btnCopied"), L2(lang, "btnCopy")));
+      document.getElementById("mPreview").addEventListener("click", () => PIXELPOST_RUNTIME(card, { onClose: () => {} }));
+      document.getElementById("mDownload").addEventListener("click", () => {
+        const blob = new Blob([buildStandaloneHTML(card)], { type: "text/html" });
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+        a.download = (card.title || L2(lang, "fileName")).replace(/[^\wäöüÄÖÜß\-]+/g, "_").slice(0, 60) + ".html";
+        a.click(); URL.revokeObjectURL(a.href);
+      });
+      box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+    render();
+  }
+  async function copyField(inputId, btnId, doneLabel, label) {
+    const inp = document.getElementById(inputId), btn = document.getElementById(btnId);
+    try { await navigator.clipboard.writeText(inp.value); } catch (e) { inp.select(); document.execCommand && document.execCommand("copy"); }
+    btn.textContent = doneLabel; setTimeout(() => { btn.textContent = label; }, 1600);
+  }
+
+  // Test-Hooks fürs Backend (nur bei __PP_DEBUG)
+  if (window.__PP_DEBUG) window.__ppCollab = { rpc, initContributor, initManage };
+
   function showViewerError(err) {
     const tooOld = String(err && err.message) === "browser-zu-alt";
     const box = document.createElement("div");
@@ -182,7 +395,12 @@
       + "</p><p><a href=\"" + APP_URL + "\">Selbst eine Karte erstellen · Create your own card →</a></p>";
     document.body.appendChild(box);
   }
-  if (document.documentElement.classList.contains("is-viewer")) {
+  // Routing nach Hash: Sammel-Beitrag, Verwalten, fertige Karte — oder Ersteller
+  const collectM = /^#collect=([0-9a-fA-F-]{36})$/.exec(location.hash);
+  const manageM = /^#manage=([0-9a-fA-F-]{36})~([0-9a-fA-F]{64})$/.exec(location.hash);
+  if (collectM) { initContributor(collectM[1]); return; }
+  if (manageM) { initManage(manageM[1], manageM[2]); return; }
+  if (/^#(c|d)=/.test(location.hash)) {
     decodePayload(location.hash)
       .then((card) => {
         if (!card) throw new Error("kein-inhalt");
@@ -401,6 +619,42 @@
       box.hidden = false;
     } catch (e) { box.hidden = true; note.textContent = t("qrTooLong"); note.hidden = false; }
   }
+
+  /* ----- Sammel-Link starten (Backend) ----- */
+  async function startCollab() {
+    const btn = $("btnCollab"), out = $("collabResult");
+    const orig = btn.textContent; btn.disabled = true; btn.textContent = t("collabWorking");
+    try {
+      const c = cardFromState();
+      const r = (await rpc("create_collection", { p_title: c.title, p_occasion: c.occasion, p_lang: c.lang, p_hero: c.hero }))[0];
+      rememberCollab({ id: r.id, token: r.owner_token, title: c.title, lang: c.lang });
+      const invite = APP_URL + "#collect=" + r.id;
+      const manage = APP_URL + "#manage=" + r.id + "~" + r.owner_token;
+      const iqr = makeQR(invite);
+      out.hidden = false;
+      out.innerHTML =
+        "<div class='share'>" +
+        "<label>" + escHtml(t("collabInviteLabel")) + "</label>" +
+        "<div class='share__row'><input id='ciUrl' readonly value='" + escHtml(invite) + "'><button type='button' id='ciCopy' class='btn btn--primary'>" + escHtml(t("btnCopy")) + "</button></div>" +
+        (iqr ? "<div class='qr'><img src='" + iqr + "' alt='QR'></div>" : "") +
+        "<label class='collab__ml'>" + escHtml(t("collabManageLabel")) + "</label>" +
+        "<div class='share__row'><input id='cmUrl' readonly value='" + escHtml(manage) + "'><button type='button' id='cmCopy' class='btn'>" + escHtml(t("btnCopy")) + "</button></div>" +
+        "<p class='note'>" + escHtml(t("collabManageNote")) + "</p>" +
+        "<a class='btn btn--primary collab__build' href='" + escHtml(manage) + "'>" + escHtml(t("collabOpenManage")) + "</a></div>";
+      $("ciCopy").addEventListener("click", () => copyField("ciUrl", "ciCopy", t("btnCopied"), t("btnCopy")));
+      $("cmCopy").addEventListener("click", () => copyField("cmUrl", "cmCopy", t("btnCopied"), t("btnCopy")));
+    } catch (e) {
+      out.hidden = false; out.innerHTML = "<p class='note'>" + escHtml(t("collabErr")) + "</p>";
+    } finally { btn.disabled = false; btn.textContent = orig; }
+  }
+  $("btnCollab").addEventListener("click", startCollab);
+  (function showSavedCollabs() {
+    const saved = savedCollabs(); const box = $("savedCollabs");
+    if (!box || !saved.length) return;
+    box.hidden = false;
+    box.innerHTML = "<p class='note'>" + escHtml(t("savedCollabs")) + "</p>" +
+      saved.map((c) => "<a class='saved-link' href='" + escHtml(APP_URL + "#manage=" + c.id + "~" + c.token) + "'>" + escHtml(c.title || "PixelPost") + " →</a>").join("");
+  })();
 
   /* ----- Init ----- */
   bindPicker("occasionPick", "occasion");

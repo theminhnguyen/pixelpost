@@ -18,7 +18,7 @@
   <meta name="twitter:title" content="PixelPost — deine Grußkarte als Retro-Mini-Spiel">
   <meta name="twitter:description" content="Sammle Grüße und verschicke sie als begehbares Mini-Spiel im Game-Boy-Stil.">
   <meta name="twitter:image" content="https://theminhnguyen.github.io/pixelpost/og.png">
-  <script>if (/^#(c|d)=/.test(location.hash)) document.documentElement.className = "is-viewer";</script>
+  <script>if (/^#(c|d|collect|manage)=/.test(location.hash)) document.documentElement.className = "is-viewer";</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -73,6 +73,14 @@
         <button type="button" id="addGreet" class="btn btn--ghost" data-i18n="addGreet">+ Gruß hinzufügen</button>
         <span id="greetCount" class="note"></span>
       </div>
+    </section>
+
+    <section class="step step--collab">
+      <h2>🤝 <span data-i18n="stepCollab">Lieber gemeinsam sammeln?</span></h2>
+      <p class="note" data-i18n="collabIntro">Statt alles selbst einzutragen: Starte einen Sammel-Link und schick ihn rum.</p>
+      <button type="button" id="btnCollab" class="btn" data-i18n="btnCollab">🔗 Sammel-Link starten</button>
+      <div id="collabResult" hidden></div>
+      <div id="savedCollabs" hidden></div>
     </section>
 
     <section class="step step--actions">

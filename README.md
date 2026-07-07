@@ -13,12 +13,29 @@ Ersteller-Seite).
 
 ## Wie es funktioniert
 
-1. **Erstellen:** Auf der Seite Sprache, Anlass und Begrüßung wählen,
-   Grüße eintragen.
+1. **Erstellen:** Auf der Seite Sprache, Anlass, Figur und Begrüßung wählen,
+   Grüße eintragen (jeweils optional mit Emoji).
 2. **Teilen:** Entweder als **Link** (die komplette Karte steckt komprimiert in
    der URL — kein Server, nichts wird hochgeladen) oder als **HTML-Datei**
    (läuft komplett offline).
 3. **Spielen:** Der Empfänger öffnet Link oder Datei und läuft los.
+
+### Optional: Sammel-Link (mehrere tragen ein)
+
+Statt alle Grüße selbst einzutragen, kann man einen **Sammel-Link** starten und
+herumschicken — jede/r trägt den eigenen Gruß ein, und der Ersteller baut am
+Ende mit seinem privaten Verwalten-Link die fertige (weiterhin serverlose)
+Karte. Nur dafür werden die Grüße kurz in einer Supabase-Datenbank
+zwischengespeichert:
+
+- Tabellen sind per Row-Level-Security komplett gesperrt; jeder Zugriff läuft
+  über geprüfte `SECURITY DEFINER`-Funktionen (`create_collection`,
+  `collection_info`, `add_greeting`, `list_greetings`, `set_collection_open`).
+- Beitragende können nur eintragen (nicht mitlesen); nur wer den geheimen
+  `owner_token` (im Verwalten-Link) hat, sieht die gesammelten Grüße.
+- Limits gegen Missbrauch: max. 200 Grüße/Sammlung, Längenbegrenzungen.
+- Der `anon`/publishable Key ist bewusst öffentlich (Sicherheit steckt in RLS +
+  Funktionen).
 
 ## Technik
 
