@@ -78,8 +78,13 @@
       mToggleClose: "Sammlung schließen (keine neuen Grüße)",
       mToggleOpen: "Sammlung wieder öffnen",
       mEmpty: "Noch keine Grüße — teile den Einlade-Link! 📨",
+      mEmptyClosed: "Noch keine Grüße — und die Sammlung ist geschlossen. Öffne sie wieder, damit über den Einlade-Link eingetragen werden kann.",
       mForbidden: "Kein Zugriff — der Verwalten-Link ist unvollständig oder falsch.",
       mInvite: "Einlade-Link (zum Weiterteilen):",
+      mOpenBanner: "✅ Sammlung offen — teile den Einlade-Link, damit alle ihren Gruß eintragen können.",
+      mClosedBanner: "🔒 Sammlung geschlossen — über den Einlade-Link kann gerade niemand Grüße eintragen.",
+      mReopenNow: "Wieder öffnen",
+      mCloseConfirm: "Sammlung schließen? Danach kann über den Einlade-Link niemand mehr Grüße eintragen. Du kannst sie jederzeit wieder öffnen.",
     },
     en: {
       docTitle: "PixelPost — greeting card as a retro mini-game",
@@ -144,8 +149,13 @@
       mToggleClose: "Close collection (no new greetings)",
       mToggleOpen: "Reopen collection",
       mEmpty: "No greetings yet — share the invite link! 📨",
+      mEmptyClosed: "No greetings yet — and the collection is closed. Reopen it so people can add greetings via the invite link.",
       mForbidden: "No access — the manage link is incomplete or wrong.",
       mInvite: "Invite link (to share):",
+      mOpenBanner: "✅ Collection open — share the invite link so everyone can add their greeting.",
+      mClosedBanner: "🔒 Collection closed — nobody can add greetings via the invite link right now.",
+      mReopenNow: "Reopen",
+      mCloseConfirm: "Close the collection? After this, nobody can add greetings via the invite link. You can reopen it any time.",
     },
   };
   const detectLang = () => {
@@ -331,24 +341,33 @@
       try { rows = await rpc("list_greetings", { p_collection: id, p_token: token }); info = (await rpc("collection_info", { p_id: id }))[0]; } catch (e) {}
       render();
     }
+    async function setOpen(val) {
+      try { await rpc("set_collection_open", { p_collection: id, p_token: token, p_open: val }); info.open = val; render(); } catch (e) {}
+    }
     function render() {
       const listHtml = rows.length
         ? "<ul class='collab__list'>" + rows.map((g) => "<li><b>" + escHtml((g.emoji ? g.emoji + " " : "") + (g.name || "—")) + "</b>" + escHtml(g.text || "") + "</li>").join("") + "</ul>"
-        : "<p class='collab__msg'>" + escHtml(tr("mEmpty")) + "</p>";
+        : "<p class='collab__msg'>" + escHtml(info.open ? tr("mEmpty") : tr("mEmptyClosed")) + "</p>";
+      const banner = info.open
+        ? "<div class='collab__status is-open'>" + escHtml(tr("mOpenBanner")) + "</div>"
+        : "<div class='collab__status is-closed'>" + escHtml(tr("mClosedBanner")) + " <button type='button' id='mReopen'>" + escHtml(tr("mReopenNow")) + "</button></div>";
       w.innerHTML = shell(
         "<h1>" + escHtml(tr("mHeading")) + "</h1>" +
-        "<p class='collab__count'>" + rows.length + " " + escHtml(tr("mCountSuffix")) + (info.open ? "" : " · 🔒") + "</p>" +
-        "<div class='collab__row2'><button id='mRefresh' class='btn btn--small'>" + escHtml(tr("mRefresh")) + "</button>" +
-        "<button id='mToggle' class='btn btn--small'>" + escHtml(info.open ? tr("mToggleClose") : tr("mToggleOpen")) + "</button></div>" +
+        "<p class='collab__count'>" + rows.length + " " + escHtml(tr("mCountSuffix")) + "</p>" +
+        banner +
+        "<div class='collab__invite'><label>" + escHtml(tr("mInvite")) + "</label><div class='share__row'><input id='mInvite' readonly value='" + escHtml(inviteUrl) + "'><button type='button' id='mInviteCopy' class='btn btn--small'>" + escHtml(L2(lang, "btnCopy")) + "</button></div></div>" +
+        "<div class='collab__row2'><button type='button' id='mRefresh' class='btn btn--small'>" + escHtml(tr("mRefresh")) + "</button>" +
+        "<button type='button' id='mToggle' class='btn btn--small'>" + escHtml(info.open ? tr("mToggleClose") : tr("mToggleOpen")) + "</button></div>" +
         listHtml +
-        "<div class='collab__invite'><label>" + escHtml(tr("mInvite")) + "</label><div class='share__row'><input id='mInvite' readonly value='" + escHtml(inviteUrl) + "'><button id='mInviteCopy' class='btn btn--small'>" + escHtml(L2(lang, "btnCopy")) + "</button></div></div>" +
-        "<button id='mBuild' class='btn btn--primary collab__build'" + (rows.length ? "" : " disabled") + ">" + escHtml(tr("mBuild")) + "</button>" +
+        "<button type='button' id='mBuild' class='btn btn--primary collab__build'" + (rows.length ? "" : " disabled") + ">" + escHtml(tr("mBuild")) + "</button>" +
         "<div id='mShare'></div>");
       document.getElementById("mRefresh").addEventListener("click", refresh);
       document.getElementById("mInviteCopy").addEventListener("click", () => copyField("mInvite", "mInviteCopy", L2(lang, "btnCopied"), L2(lang, "btnCopy")));
-      document.getElementById("mToggle").addEventListener("click", async () => {
-        try { await rpc("set_collection_open", { p_collection: id, p_token: token, p_open: !info.open }); info.open = !info.open; render(); } catch (e) {}
+      document.getElementById("mToggle").addEventListener("click", () => {
+        if (info.open) { if (confirm(tr("mCloseConfirm"))) setOpen(false); } else setOpen(true);
       });
+      const reopen = document.getElementById("mReopen");
+      if (reopen) reopen.addEventListener("click", () => setOpen(true));
       document.getElementById("mBuild").addEventListener("click", buildCard);
     }
     async function buildCard() {
