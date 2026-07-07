@@ -512,17 +512,16 @@ function PIXELPOST_RUNTIME(CARD, opts) {
     overlay.appendChild(brand);
   }
 
-  /* ---------- Raum (wächst in Breite UND Höhe mit der Gruß-Anzahl) ----------
-     NPCs stehen auf einem Gitter: gerade Spalten (x=2,4,6…), ungerade Reihen
-     (y=3,5,7…), mit einer freien Lücke dazwischen → jede Figur ist von der
-     Seite/von unten erreichbar. Mehr Grüße = breiterer + höherer Raum, die
-     Kamera scrollt dann in beide Richtungen. */
+  /* ---------- Raum (großzügig, wächst mit der Gruß-Anzahl) ----------
+     Die Figuren werden zufällig verstreut (nicht im Raster), deshalb wird der
+     Raum großzügig dimensioniert (~50 % Belegung bei Mindestabstand 2), damit
+     die Zufallsplatzierung locker Platz findet. Kamera scrollt in beide
+     Richtungen. */
   const greet = (CARD.greetings || []).filter((g) => (g.text || "").trim() || (g.name || "").trim());
   const n = greet.length;
-  const npcCols = n === 0 ? 0 : Math.min(6, Math.max(3, Math.ceil(Math.sqrt(n * 1.3))));
-  const npcRows = n === 0 ? 0 : Math.ceil(n / npcCols);
-  const COLS = Math.max(10, npcCols * 2 + 3);
-  const ROWS = Math.max(11, npcRows * 2 + 7);
+  const roomNeed = Math.max(6, n) * 8; // gewünschte begehbare Streufläche
+  const COLS = Math.max(11, Math.min(20, Math.ceil(Math.sqrt(roomNeed))));
+  const ROWS = Math.max(12, Math.min(32, Math.ceil(roomNeed / (COLS - 2)) + 6));
   const midX = Math.floor(COLS / 2);
   const festive = !!occ.festive;
 
@@ -559,13 +558,60 @@ function PIXELPOST_RUNTIME(CARD, opts) {
     tiles.push({ x, y, img }); solid.add(x + "," + y);
   });
 
-  /* ---------- NPCs (ein Männchen pro Gruß, Aussehen aus dem Namen) ----------
-     ⚠️ Gitter-Schleifen laufen nur, solange spots < n — bei 0 Grüßen läuft
-     gar nichts (Endlosschleife war ein früher Live-Bug). */
-  const spots = [];
-  for (let r = 0; r < npcRows && spots.length < n; r++)
-    for (let c = 0; c < npcCols && spots.length < n; c++) spots.push([2 + c * 2, 3 + r * 2]);
-  const npcs = greet.map((g, i) => ({
+  /* ---------- NPCs: zufällig verstreut, aber garantiert erreichbar ----------
+     Deterministisch pro Karte (Seed aus den Grüßen) → gleiche Karte = gleiche
+     Anordnung (und identisch in Live-Ansicht + Download). Mindestabstand 2 (auch
+     diagonal) verhindert, dass Figuren einen Weg versperren; zusätzlich prüft
+     ein BFS die Erreichbarkeit. Klappt das nach vielen Versuchen nicht, greift
+     ein geordnetes Gitter (immer erreichbar, immer genug Plätze). */
+  const startX = midX, startY = ROWS - 2;
+  const STEPS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+  function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  let seed = (Math.imul(n + 1, 2654435761)) >>> 0;
+  for (let i = 0; i < greet.length; i++) {
+    const s = (greet[i].name || "") + "|" + (greet[i].text || "");
+    for (let k = 0; k < s.length; k++) seed = (Math.imul(seed, 31) + s.charCodeAt(k)) >>> 0;
+    seed = (seed + Math.imul(i + 1, 2654435761)) >>> 0;
+  }
+  function reachOK(placed) {
+    const block = new Set(solid); for (const p of placed) block.add(p[0] + "," + p[1]);
+    const walk = (x, y) => x >= 0 && x < COLS && y >= 2 && y < ROWS && !block.has(x + "," + y);
+    if (!walk(startX, startY)) return false;
+    const seen = new Set([startX + "," + startY]); const q = [[startX, startY]];
+    while (q.length) { const c = q.pop(); for (const [dx, dy] of STEPS) { const nx = c[0] + dx, ny = c[1] + dy, kk = nx + "," + ny; if (!seen.has(kk) && walk(nx, ny)) { seen.add(kk); q.push([nx, ny]); } } }
+    return placed.every((p) => STEPS.some(([dx, dy]) => seen.has((p[0] + dx) + "," + (p[1] + dy))));
+  }
+  function placeNpcs() {
+    if (n === 0) return [];
+    const interior = [];
+    for (let y = 3; y <= ROWS - 4; y++) for (let x = 1; x <= COLS - 2; x++)
+      if (!solid.has(x + "," + y) && !(x === startX && y === startY)) interior.push([x, y]);
+    const rng = mulberry32(seed);
+    for (let attempt = 0; attempt < 60; attempt++) {
+      const placed = []; const used = new Set(); let ok = true;
+      for (let i = 0; i < n; i++) {
+        let found = null;
+        for (let t = 0; t < 300 && !found; t++) {
+          const cand = interior[(rng() * interior.length) | 0];
+          if (used.has(cand[0] + "," + cand[1])) continue;
+          let clash = false;
+          for (const p of placed) if (Math.max(Math.abs(p[0] - cand[0]), Math.abs(p[1] - cand[1])) < 2) { clash = true; break; }
+          if (!clash) found = cand;
+        }
+        if (!found) { ok = false; break; }
+        placed.push(found); used.add(found[0] + "," + found[1]);
+      }
+      if (ok && reachOK(placed)) return placed;
+    }
+    // Fallback: geordnetes Gitter, danach beliebige freie Felder auffüllen
+    const g = [], used = new Set();
+    const tryPush = (x, y) => { const k = x + "," + y; if (!used.has(k) && !solid.has(k) && !(x === startX && y === startY)) { used.add(k); g.push([x, y]); } };
+    for (let y = 3; g.length < n && y <= ROWS - 4; y += 2) for (let x = 2; g.length < n && x <= COLS - 3; x += 2) tryPush(x, y);
+    for (let y = 3; g.length < n && y <= ROWS - 4; y++) for (let x = 1; g.length < n && x <= COLS - 2; x++) tryPush(x, y);
+    return g;
+  }
+  const spots = placeNpcs();
+  const npcs = greet.slice(0, spots.length).map((g, i) => ({
     g, x: spots[i][0], y: spots[i][1], dir: "down", read: false, hopUntil: 0,
     emoji: (g.emoji || "").trim().slice(0, 8),
     spr: figureSet(lookOf(g.name, i)),
@@ -889,7 +935,7 @@ function PIXELPOST_RUNTIME(CARD, opts) {
         }
         return npcs.every((nn) => steps.some(([dx, dy]) => seen.has((nn.x + dx) + "," + (nn.y + dy))));
       };
-      window.__ppCard = { P, npcs, D, aPress, close, allReachable, sprites, confetti, heroIdx, state: () => ({ x: P.x, y: P.y, dir: P.dir, dialog: D.open, npcs: npcs.length, cols: COLS, rows: ROWS, read: npcs.filter((n) => n.read).length, speaker: !!D.speaker, confetti: confetti.length, listOpen: !listPanel.hidden }) };
+      window.__ppCard = { P, npcs, D, aPress, close, allReachable, sprites, confetti, heroIdx, walkableAt: (x, y) => walkable(x, y), state: () => ({ x: P.x, y: P.y, dir: P.dir, dialog: D.open, npcs: npcs.length, cols: COLS, rows: ROWS, read: npcs.filter((n) => n.read).length, speaker: !!D.speaker, confetti: confetti.length, listOpen: !listPanel.hidden }) };
     }
     raf = requestAnimationFrame(loop);
   };
