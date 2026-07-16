@@ -37,4 +37,16 @@ jobs:
           echo "Keepalive-Ping gesendet."
 
       - name: Repo wach halten (verhindert Auto-Disable des Crons nach 60 Tagen)
-        uses: gautamkrishnar/keepalive-workflow@v2
+        run: |
+          LAST=$(git log -1 --format=%ct)
+          DAYS=$(( ($(date +%s) - LAST) / 86400 ))
+          if [ "$DAYS" -ge 45 ]; then
+            echo "Letzter Ping: $(date -u +%Y-%m-%dT%H:%M:%SZ)" > .keepalive
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add .keepalive
+            git commit -m "chore: Repo wach halten (verhindert Cron-Auto-Disable nach 60 Tagen)"
+            git push
+          else
+            echo "Letzter Commit ist $DAYS Tage alt, noch kein Wach-Halte-Commit nötig."
+          fi
