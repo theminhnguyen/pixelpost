@@ -1,0 +1,40 @@
+name: Supabase-Keepalive
+
+# PixelPost ist rein statisch (GitHub Pages, kein eigener Server) und nutzt
+# Supabase nur für die geteilten Kartensammlungen. Supabase pausiert
+# Free-Projekte nach ~7 Tagen ohne echte Datenbank-Aktivität – da niemand
+# sonst regelmäßig auf die App zugreift, übernimmt dieser Cron das tägliche
+# "Anklopfen" per echter DB-Query (zählt zuverlässiger als ein reiner
+# Health-Check ohne Query).
+#
+# Wichtig: Der Free-Tier erlaubt organisationsweit sowieso nur 2 gleichzeitig
+# AKTIVE Projekte – dieser Workflow verhindert nur, dass PixelPost eines der
+# zwei Kontingente durch Inaktivität verliert, er hebt den Deckel nicht auf.
+#
+# Der Repo-wach-halten-Schritt verhindert, dass GitHub diesen Cron nach 60
+# Tagen ohne Repo-Aktivität automatisch abschaltet, falls PixelPost mal eine
+# Weile lang niemand anfasst.
+
+on:
+  schedule:
+    - cron: "5 4 * * *" # täglich 04:05 UTC
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Supabase anpingen (echte DB-Query zählt als Aktivität)
+        run: |
+          curl -sf "https://moezhswmybxxeplncgyy.supabase.co/rest/v1/collections?select=id&limit=1" \
+            -H "apikey: sb_publishable_XNkGqoR-HyQmi5mjAXXt_A_u6gL1P-f" \
+            -H "Authorization: Bearer sb_publishable_XNkGqoR-HyQmi5mjAXXt_A_u6gL1P-f" \
+            -o /dev/null
+          echo "Keepalive-Ping gesendet."
+
+      - name: Repo wach halten (verhindert Auto-Disable des Crons nach 60 Tagen)
+        uses: gautamkrishnar/keepalive-workflow@v2
